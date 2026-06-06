@@ -1,0 +1,1429 @@
+# TravelAround API Contract
+
+Version: Phase 4 MVP  
+Status: Draft  
+Scope: REST API contract only. No backend implementation in this phase.
+
+## 1. Design Goals
+
+This contract is based on the current frontend mock data and the TravelAround PRD v1.0 MVP loop:
+
+- Users can view their travel profile and home summary.
+- Users can browse cities and spots.
+- Users can find nearby check-in spots from GPS coordinates.
+- Users can create GPS or manual check-ins.
+- Users can create and view trips.
+- Users can generate and view AI memories.
+- Users can view achievements and theme quest progress.
+- Images are represented as backend-owned metadata objects. Real object storage upload can be implemented later.
+
+The MVP backend should keep the first closed loop small: user -> city/spot -> check-in -> trip -> AI memory -> achievement progress.
+
+## 2. API Basics
+
+Base URL:
+
+```text
+https://api.travelaround.app/v1
+```
+
+Authentication:
+
+```http
+Authorization: Bearer <accessToken>
+```
+
+MVP can allow guest tokens. Guest-created records should use the same schema as logged-in records so they can be merged after login.
+
+Content type:
+
+```http
+Content-Type: application/json
+```
+
+Time format:
+
+- Date: `YYYY-MM-DD`
+- DateTime: ISO 8601 UTC, for example `2026-05-01T09:20:00.000Z`
+
+Coordinates:
+
+- `latitude`: WGS84 decimal degrees
+- `longitude`: WGS84 decimal degrees
+- Distance fields use meters.
+
+## 3. Common Response Envelope
+
+Successful response:
+
+```json
+{
+  "data": {},
+  "meta": {
+    "requestId": "req_01JZ8F3M9TVT4",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+List response:
+
+```json
+{
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 102,
+    "hasMore": true
+  },
+  "meta": {
+    "requestId": "req_01JZ8F3M9TVT4",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error response:
+
+```json
+{
+  "error": {
+    "code": "SPOT_NOT_FOUND",
+    "message": "Spot not found.",
+    "details": {
+      "spotId": "broken-bridge"
+    }
+  },
+  "meta": {
+    "requestId": "req_01JZ8F3M9TVT4",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+## 4. Common Error Codes
+
+| HTTP | Code | Meaning |
+| --- | --- | --- |
+| 400 | `VALIDATION_ERROR` | Request body or query is invalid. |
+| 400 | `LOCATION_REQUIRED` | A GPS-only request is missing coordinates. |
+| 400 | `CHECK_IN_OUT_OF_RANGE` | GPS check-in is outside the spot radius. |
+| 401 | `AUTH_REQUIRED` | Missing or invalid access token. |
+| 403 | `FORBIDDEN` | User cannot access this resource. |
+| 404 | `USER_NOT_FOUND` | User does not exist. |
+| 404 | `CITY_NOT_FOUND` | City does not exist. |
+| 404 | `SPOT_NOT_FOUND` | Spot does not exist. |
+| 404 | `TRIP_NOT_FOUND` | Trip does not exist. |
+| 404 | `IMAGE_NOT_FOUND` | Image asset does not exist. |
+| 404 | `AI_MEMORY_NOT_FOUND` | AI memory does not exist. |
+| 409 | `DUPLICATE_RESOURCE` | A unique resource already exists. |
+| 409 | `TRIP_DATE_CONFLICT` | Trip dates conflict with business rules. |
+| 422 | `AI_MEMORY_NOT_READY` | Trip data is not enough to generate a memory. |
+| 429 | `RATE_LIMITED` | Too many requests. |
+| 500 | `INTERNAL_ERROR` | Unexpected server error. |
+
+## 5. Data Models
+
+### 5.1 GeoPoint
+
+```json
+{
+  "latitude": 30.2617,
+  "longitude": 120.1526
+}
+```
+
+### 5.2 User
+
+Matches current `TravelUser`.
+
+```json
+{
+  "id": "u-nicola",
+  "nickname": "Nicola",
+  "avatarUrl": "https://cdn.travelaround.app/avatars/u-nicola.jpg",
+  "level": "Lv.12",
+  "title": "城市漫游者",
+  "litCityCount": 18,
+  "exploredSpotCount": 72,
+  "aiMemoryCount": 11,
+  "achievementCount": 14,
+  "provinceCount": 7,
+  "tripCount": 1,
+  "createdAt": "2026-05-01T00:00:00.000Z",
+  "updatedAt": "2026-06-06T14:00:00.000Z"
+}
+```
+
+### 5.3 City
+
+Matches current `City`; adds derived user stats for detail pages.
+
+```json
+{
+  "id": "hangzhou",
+  "name": "杭州",
+  "province": "浙江",
+  "lit": true,
+  "wished": false,
+  "visitedAt": "2026-05-03",
+  "mapX": 62,
+  "mapY": 63,
+  "coverUrl": "https://cdn.travelaround.app/cities/hangzhou.jpg",
+  "description": "湖光、茶田、老街和雾气，把杭州变成一张适合慢慢点亮的旅行地图。",
+  "spotIds": ["west-lake", "broken-bridge"],
+  "tags": ["西湖", "江南", "周末探索"],
+  "stats": {
+    "litSpotCount": 2,
+    "totalSpotCount": 5,
+    "tripCount": 1,
+    "photoCount": 36
+  }
+}
+```
+
+### 5.4 Spot
+
+Matches current `Spot`.
+
+```json
+{
+  "id": "broken-bridge",
+  "cityId": "hangzhou",
+  "cityName": "杭州",
+  "name": "断桥残雪",
+  "distance": "280m",
+  "distanceMeters": 280,
+  "radius": 500,
+  "coordinates": {
+    "latitude": 30.2617,
+    "longitude": 120.1526
+  },
+  "status": "available",
+  "canCheckIn": true,
+  "coverUrl": "https://cdn.travelaround.app/spots/broken-bridge.jpg",
+  "description": "西湖十景之一，适合作为杭州周末探索的第一枚新光点。",
+  "tags": ["西湖十景", "可点亮"],
+  "questIds": ["west-lake-ten"],
+  "photoIds": []
+}
+```
+
+Spot status enum:
+
+```text
+available | lit | locked | wishlist
+```
+
+### 5.5 CheckIn
+
+Matches current `CheckInRecord`; moves local-only image URI to backend image IDs and URLs.
+
+```json
+{
+  "id": "ci-broken-bridge-1760000000000",
+  "userId": "u-nicola",
+  "cityId": "hangzhou",
+  "spotId": "broken-bridge",
+  "tripId": "hangzhou-3-days",
+  "createdAt": "2026-06-06T14:00:00.000Z",
+  "visitedAt": "2026-06-06T13:58:00.000Z",
+  "moodText": "断桥边的风很轻。",
+  "type": "gps",
+  "location": {
+    "latitude": 30.2618,
+    "longitude": 120.1527
+  },
+  "distanceMeters": 24,
+  "photoIds": ["img_01JZ8F3M9TVT4"],
+  "photos": []
+}
+```
+
+Check-in type enum:
+
+```text
+gps | manual
+```
+
+### 5.6 Trip
+
+Matches current `Trip`.
+
+```json
+{
+  "id": "hangzhou-3-days",
+  "userId": "u-nicola",
+  "title": "杭州 3 日游",
+  "cityIds": ["hangzhou"],
+  "startDate": "2026-05-01",
+  "endDate": "2026-05-03",
+  "days": 3,
+  "spotIds": ["west-lake", "leifeng-pagoda"],
+  "checkInIds": ["ci-west-lake", "ci-leifeng-pagoda"],
+  "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+  "photoCount": 36,
+  "coverUrl": "https://cdn.travelaround.app/trips/hangzhou-3-days.jpg",
+  "aiMemoryId": "memory-hangzhou",
+  "summary": "3 天 · 1 座城市 · 7 个景点 · 36 张照片",
+  "visibility": "private",
+  "createdAt": "2026-05-03T12:00:00.000Z",
+  "updatedAt": "2026-06-06T14:00:00.000Z"
+}
+```
+
+Visibility enum:
+
+```text
+private | public | unlisted
+```
+
+### 5.7 ImageAsset
+
+```json
+{
+  "id": "img_01JZ8F3M9TVT4",
+  "userId": "u-nicola",
+  "url": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4.jpg",
+  "thumbnailUrl": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4_thumb.jpg",
+  "contentType": "image/jpeg",
+  "width": 1600,
+  "height": 1200,
+  "byteSize": 524288,
+  "linkedType": "check_in",
+  "linkedId": "ci-broken-bridge-1760000000000",
+  "createdAt": "2026-06-06T14:00:00.000Z"
+}
+```
+
+### 5.8 AIMemory
+
+Matches current `AIMemory`.
+
+```json
+{
+  "id": "memory-hangzhou",
+  "tripId": "hangzhou-3-days",
+  "title": "在杭州，把时间走慢",
+  "summary": "3 天，1 座城市，7 个景点，36 张照片。",
+  "content": "清晨的西湖像一张安静的地图...",
+  "style": "自然日记",
+  "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+  "spotIds": ["west-lake", "broken-bridge"],
+  "status": "completed",
+  "generatedAt": "2026-06-06T14:00:00.000Z"
+}
+```
+
+AI memory status enum:
+
+```text
+queued | generating | completed | failed
+```
+
+### 5.9 Achievement
+
+Matches current `Achievement`.
+
+```json
+{
+  "id": "west-lake-first",
+  "title": "西湖初印象",
+  "description": "打卡任意 1 个西湖十景",
+  "unlocked": true,
+  "unlockedAt": "2026-05-01",
+  "tone": "gold"
+}
+```
+
+Tone enum:
+
+```text
+mint | purple | gold | blue
+```
+
+### 5.10 ThemeQuest
+
+Matches current `ThemeQuest`.
+
+```json
+{
+  "id": "west-lake-ten",
+  "title": "西湖十景",
+  "subtitle": "4 / 10 已点亮",
+  "description": "沿着湖岸和山影收集杭州最经典的十个景致。",
+  "progress": 4,
+  "total": 10,
+  "coverUrl": "https://cdn.travelaround.app/quests/west-lake-ten.jpg",
+  "rewardAchievementId": "west-lake-collector",
+  "spotIds": ["west-lake", "broken-bridge"],
+  "cityIds": ["hangzhou"]
+}
+```
+
+## 6. Endpoints
+
+### 6.1 Get Current User
+
+```http
+GET /users/me
+```
+
+Request:
+
+No body.
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "id": "u-nicola",
+    "nickname": "Nicola",
+    "avatarUrl": "https://cdn.travelaround.app/avatars/u-nicola.jpg",
+    "level": "Lv.12",
+    "title": "城市漫游者",
+    "litCityCount": 18,
+    "exploredSpotCount": 72,
+    "aiMemoryCount": 11,
+    "achievementCount": 14,
+    "provinceCount": 7,
+    "tripCount": 1
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `USER_NOT_FOUND`
+
+Pagination:
+
+Not needed.
+
+### 6.2 Get Home Summary
+
+Aggregates Home/Profile data currently derived from Zustand.
+
+```http
+GET /home/summary
+```
+
+Request:
+
+No body.
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "user": {
+      "id": "u-nicola",
+      "nickname": "Nicola",
+      "avatarUrl": "https://cdn.travelaround.app/avatars/u-nicola.jpg",
+      "level": "Lv.12",
+      "title": "城市漫游者",
+      "litCityCount": 18,
+      "exploredSpotCount": 72,
+      "aiMemoryCount": 11,
+      "achievementCount": 14,
+      "provinceCount": 7,
+      "tripCount": 1
+    },
+    "map": {
+      "cities": [],
+      "litCityCount": 18,
+      "provinceCount": 7,
+      "exploredSpotCount": 72
+    },
+    "recentTrip": {
+      "id": "hangzhou-3-days",
+      "title": "杭州 3 日游",
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-03",
+      "summary": "3 天 · 1 座城市 · 7 个景点 · 36 张照片",
+      "coverUrl": "https://cdn.travelaround.app/trips/hangzhou-3-days.jpg",
+      "aiMemoryId": "memory-hangzhou"
+    },
+    "recommendedQuest": {
+      "id": "west-lake-ten",
+      "title": "西湖十景",
+      "progress": 4,
+      "total": 10
+    },
+    "latestAchievements": []
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `USER_NOT_FOUND`
+
+Pagination:
+
+Not needed. The server should return compact arrays for Home. Full data should be fetched from list APIs.
+
+### 6.3 List Cities
+
+```http
+GET /cities
+```
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `status` | string | No | `all`, `lit`, `unlit`, `wishlist`. Default `all`. |
+| `province` | string | No | Filter by province name. |
+| `keyword` | string | No | Search city name or tags. |
+| `includeStats` | boolean | No | Include derived user stats. Default `true`. |
+| `page` | number | No | Default `1`. |
+| `pageSize` | number | No | Default `20`, max `100`. |
+
+Response `200`:
+
+```json
+{
+  "data": [
+    {
+      "id": "hangzhou",
+      "name": "杭州",
+      "province": "浙江",
+      "lit": true,
+      "wished": false,
+      "visitedAt": "2026-05-03",
+      "mapX": 62,
+      "mapY": 63,
+      "coverUrl": "https://cdn.travelaround.app/cities/hangzhou.jpg",
+      "description": "湖光、茶田、老街和雾气，把杭州变成一张适合慢慢点亮的旅行地图。",
+      "spotIds": ["west-lake", "broken-bridge"],
+      "tags": ["西湖", "江南", "周末探索"],
+      "stats": {
+        "litSpotCount": 2,
+        "totalSpotCount": 5,
+        "tripCount": 1,
+        "photoCount": 36
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 18,
+    "hasMore": false
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+
+Pagination:
+
+Required.
+
+### 6.4 Get City Detail
+
+```http
+GET /cities/{cityId}
+```
+
+Path parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cityId` | string | Yes | City ID, for example `hangzhou`. |
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `include` | string | No | Comma-separated: `spots,quests,trips`. |
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "city": {
+      "id": "hangzhou",
+      "name": "杭州",
+      "province": "浙江",
+      "lit": true,
+      "visitedAt": "2026-05-03",
+      "mapX": 62,
+      "mapY": 63,
+      "coverUrl": "https://cdn.travelaround.app/cities/hangzhou.jpg",
+      "description": "湖光、茶田、老街和雾气，把杭州变成一张适合慢慢点亮的旅行地图。",
+      "spotIds": ["west-lake", "broken-bridge"],
+      "tags": ["西湖", "江南", "周末探索"],
+      "stats": {
+        "litSpotCount": 2,
+        "totalSpotCount": 5,
+        "tripCount": 1,
+        "photoCount": 36
+      }
+    },
+    "spots": [],
+    "quests": [],
+    "trips": []
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `CITY_NOT_FOUND`
+- `VALIDATION_ERROR`
+
+Pagination:
+
+Not needed for MVP city detail. If a city has many spots later, use `GET /spots?cityId=...`.
+
+### 6.5 List Spots
+
+```http
+GET /spots
+```
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cityId` | string | No | Filter spots in one city. |
+| `status` | string | No | `all`, `available`, `lit`, `locked`, `wishlist`. |
+| `questId` | string | No | Filter by theme quest. |
+| `keyword` | string | No | Search spot name, description, or tags. |
+| `includeCity` | boolean | No | Include `cityName`. Default `true`. |
+| `page` | number | No | Default `1`. |
+| `pageSize` | number | No | Default `20`, max `100`. |
+
+Response `200`:
+
+```json
+{
+  "data": [
+    {
+      "id": "broken-bridge",
+      "cityId": "hangzhou",
+      "cityName": "杭州",
+      "name": "断桥残雪",
+      "distance": "280m",
+      "radius": 500,
+      "coordinates": {
+        "latitude": 30.2617,
+        "longitude": 120.1526
+      },
+      "status": "available",
+      "canCheckIn": true,
+      "coverUrl": "https://cdn.travelaround.app/spots/broken-bridge.jpg",
+      "description": "西湖十景之一，适合作为杭州周末探索的第一枚新光点。",
+      "tags": ["西湖十景", "可点亮"],
+      "questIds": ["west-lake-ten"],
+      "photoIds": []
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 5,
+    "hasMore": false
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+- `CITY_NOT_FOUND`
+
+Pagination:
+
+Required.
+
+### 6.6 Get Spot Detail
+
+```http
+GET /spots/{spotId}
+```
+
+Path parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `spotId` | string | Yes | Spot ID, for example `broken-bridge`. |
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `latitude` | number | No | Current latitude. Used to compute distance. |
+| `longitude` | number | No | Current longitude. Used to compute distance. |
+| `include` | string | No | Comma-separated: `city,photos,quests,trips`. |
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "spot": {
+      "id": "broken-bridge",
+      "cityId": "hangzhou",
+      "cityName": "杭州",
+      "name": "断桥残雪",
+      "distance": "280m",
+      "distanceMeters": 280,
+      "radius": 500,
+      "coordinates": {
+        "latitude": 30.2617,
+        "longitude": 120.1526
+      },
+      "status": "available",
+      "canCheckIn": true,
+      "coverUrl": "https://cdn.travelaround.app/spots/broken-bridge.jpg",
+      "description": "西湖十景之一，适合作为杭州周末探索的第一枚新光点。",
+      "tags": ["西湖十景", "可点亮"],
+      "questIds": ["west-lake-ten"],
+      "photoIds": [],
+      "checkInState": {
+        "isLit": false,
+        "withinRadius": true,
+        "distanceMeters": 280,
+        "lastCheckInAt": null
+      }
+    },
+    "city": null,
+    "photos": [],
+    "quests": [],
+    "trips": []
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `SPOT_NOT_FOUND`
+- `VALIDATION_ERROR`
+
+Pagination:
+
+Not needed.
+
+### 6.7 Find Nearby Spots
+
+```http
+GET /spots/nearby
+```
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `latitude` | number | Yes | Current latitude. |
+| `longitude` | number | Yes | Current longitude. |
+| `radiusMeters` | number | No | Search radius. Default `3000`, max `20000`. |
+| `limit` | number | No | Default `10`, max `50`. |
+| `includeLit` | boolean | No | Include already lit spots. Default `false`. |
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "location": {
+      "latitude": 30.2618,
+      "longitude": 120.1527
+    },
+    "currentCity": {
+      "id": "hangzhou",
+      "name": "杭州",
+      "province": "浙江"
+    },
+    "spots": [
+      {
+        "id": "broken-bridge",
+        "cityId": "hangzhou",
+        "cityName": "杭州",
+        "name": "断桥残雪",
+        "distance": "24m",
+        "distanceMeters": 24,
+        "radius": 500,
+        "coordinates": {
+          "latitude": 30.2617,
+          "longitude": 120.1526
+        },
+        "status": "available",
+        "canCheckIn": true,
+        "coverUrl": "https://cdn.travelaround.app/spots/broken-bridge.jpg",
+        "description": "西湖十景之一，适合作为杭州周末探索的第一枚新光点。",
+        "tags": ["西湖十景", "可点亮"],
+        "questIds": ["west-lake-ten"],
+        "photoIds": [],
+        "withinRadius": true
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+- `LOCATION_REQUIRED`
+
+Pagination:
+
+No page-based pagination. Use `limit` because nearby search is distance-ranked.
+
+### 6.8 Create Check-In
+
+Creates a GPS check-in or manual补卡. This endpoint updates derived state: spot lit state, city lit state, trip check-in references, achievement progress.
+
+```http
+POST /check-ins
+```
+
+Request:
+
+```json
+{
+  "spotId": "broken-bridge",
+  "tripId": "hangzhou-3-days",
+  "type": "gps",
+  "visitedAt": "2026-06-06T13:58:00.000Z",
+  "moodText": "断桥边的风很轻。",
+  "location": {
+    "latitude": 30.2618,
+    "longitude": 120.1527
+  },
+  "photoIds": ["img_01JZ8F3M9TVT4"],
+  "clientRequestId": "ios-uuid-001"
+}
+```
+
+Request rules:
+
+- `spotId` is required.
+- `tripId` is optional. If omitted, server can attach to an active trip or create a lightweight default trip according to product rules.
+- `type` is required: `gps` or `manual`.
+- `location` is required when `type = gps`.
+- `visitedAt` is optional. Default is server time.
+- `photoIds` is optional. Empty array means text-only check-in.
+- `clientRequestId` is optional but recommended for idempotency.
+
+Response `201`:
+
+```json
+{
+  "data": {
+    "checkIn": {
+      "id": "ci-broken-bridge-1760000000000",
+      "userId": "u-nicola",
+      "cityId": "hangzhou",
+      "spotId": "broken-bridge",
+      "tripId": "hangzhou-3-days",
+      "createdAt": "2026-06-06T14:00:00.000Z",
+      "visitedAt": "2026-06-06T13:58:00.000Z",
+      "moodText": "断桥边的风很轻。",
+      "type": "gps",
+      "location": {
+        "latitude": 30.2618,
+        "longitude": 120.1527
+      },
+      "distanceMeters": 24,
+      "photoIds": ["img_01JZ8F3M9TVT4"],
+      "photos": []
+    },
+    "spot": {
+      "id": "broken-bridge",
+      "status": "lit",
+      "canCheckIn": false
+    },
+    "city": {
+      "id": "hangzhou",
+      "lit": true,
+      "visitedAt": "2026-06-06"
+    },
+    "trip": {
+      "id": "hangzhou-3-days",
+      "checkInIds": ["ci-west-lake", "ci-broken-bridge-1760000000000"],
+      "spotIds": ["west-lake", "broken-bridge"],
+      "photoCount": 37,
+      "summary": "3 天 · 1 座城市 · 2 个景点 · 37 张照片"
+    },
+    "unlockedAchievements": [
+      {
+        "id": "west-lake-first",
+        "title": "西湖初印象"
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `SPOT_NOT_FOUND`
+- `TRIP_NOT_FOUND`
+- `LOCATION_REQUIRED`
+- `CHECK_IN_OUT_OF_RANGE`
+- `VALIDATION_ERROR`
+- `DUPLICATE_RESOURCE`
+
+Pagination:
+
+Not needed.
+
+### 6.9 Request Image Upload
+
+Creates image metadata and returns upload instructions. The actual storage provider can be S3, OSS, Supabase Storage, Firebase Storage, or local dev storage later.
+
+```http
+POST /images/upload-url
+```
+
+Request:
+
+```json
+{
+  "fileName": "broken-bridge.jpg",
+  "contentType": "image/jpeg",
+  "byteSize": 524288,
+  "linkedType": "check_in",
+  "linkedId": null
+}
+```
+
+Response `201`:
+
+```json
+{
+  "data": {
+    "image": {
+      "id": "img_01JZ8F3M9TVT4",
+      "url": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4.jpg",
+      "thumbnailUrl": null,
+      "contentType": "image/jpeg",
+      "width": null,
+      "height": null,
+      "byteSize": 524288,
+      "linkedType": "check_in",
+      "linkedId": null,
+      "createdAt": "2026-06-06T14:00:00.000Z"
+    },
+    "upload": {
+      "method": "PUT",
+      "url": "https://storage.example.com/upload/img_01JZ8F3M9TVT4",
+      "headers": {
+        "Content-Type": "image/jpeg"
+      },
+      "expiresAt": "2026-06-06T14:15:00.000Z"
+    }
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+- `FORBIDDEN`
+
+Pagination:
+
+Not needed.
+
+### 6.10 Confirm Image Upload
+
+```http
+POST /images/{imageId}/confirm
+```
+
+Request:
+
+```json
+{
+  "width": 1600,
+  "height": 1200,
+  "linkedType": "check_in",
+  "linkedId": "ci-broken-bridge-1760000000000"
+}
+```
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "id": "img_01JZ8F3M9TVT4",
+    "url": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4.jpg",
+    "thumbnailUrl": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4_thumb.jpg",
+    "contentType": "image/jpeg",
+    "width": 1600,
+    "height": 1200,
+    "byteSize": 524288,
+    "linkedType": "check_in",
+    "linkedId": "ci-broken-bridge-1760000000000",
+    "createdAt": "2026-06-06T14:00:00.000Z"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+- `FORBIDDEN`
+- `IMAGE_NOT_FOUND`
+
+Pagination:
+
+Not needed.
+
+### 6.11 Create Trip
+
+```http
+POST /trips
+```
+
+Request:
+
+```json
+{
+  "title": "杭州 3 日游",
+  "cityIds": ["hangzhou"],
+  "startDate": "2026-05-01",
+  "endDate": "2026-05-03",
+  "spotIds": ["west-lake", "broken-bridge"],
+  "checkInIds": ["ci-west-lake"],
+  "photoIds": ["img_01JZ8F3M9TVT4"],
+  "coverImageId": "img_01JZ8F3M9TVT4",
+  "visibility": "private"
+}
+```
+
+Request rules:
+
+- `title`, `cityIds`, `startDate`, `endDate` are required.
+- `days` is server-derived from dates.
+- `spotIds`, `checkInIds`, and `photoIds` can be empty.
+- `visibility` defaults to `private`.
+
+Response `201`:
+
+```json
+{
+  "data": {
+    "id": "trip_01JZ8F3M9TVT4",
+    "userId": "u-nicola",
+    "title": "杭州 3 日游",
+    "cityIds": ["hangzhou"],
+    "startDate": "2026-05-01",
+    "endDate": "2026-05-03",
+    "days": 3,
+    "spotIds": ["west-lake", "broken-bridge"],
+    "checkInIds": ["ci-west-lake"],
+    "photoUrls": ["https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4.jpg"],
+    "photoCount": 1,
+    "coverUrl": "https://cdn.travelaround.app/images/img_01JZ8F3M9TVT4.jpg",
+    "aiMemoryId": null,
+    "summary": "3 天 · 1 座城市 · 2 个景点 · 1 张照片",
+    "visibility": "private",
+    "createdAt": "2026-06-06T14:00:00.000Z",
+    "updatedAt": "2026-06-06T14:00:00.000Z"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+- `CITY_NOT_FOUND`
+- `SPOT_NOT_FOUND`
+- `TRIP_DATE_CONFLICT`
+
+Pagination:
+
+Not needed.
+
+### 6.12 List Trips
+
+Useful for Profile, Home, and future trip list pages.
+
+```http
+GET /trips
+```
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cityId` | string | No | Filter trips that include a city. |
+| `fromDate` | date | No | Start date lower bound. |
+| `toDate` | date | No | End date upper bound. |
+| `page` | number | No | Default `1`. |
+| `pageSize` | number | No | Default `20`, max `100`. |
+
+Response `200`:
+
+```json
+{
+  "data": [
+    {
+      "id": "hangzhou-3-days",
+      "title": "杭州 3 日游",
+      "cityIds": ["hangzhou"],
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-03",
+      "days": 3,
+      "spotIds": ["west-lake", "leifeng-pagoda"],
+      "checkInIds": ["ci-west-lake"],
+      "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+      "photoCount": 36,
+      "coverUrl": "https://cdn.travelaround.app/trips/hangzhou-3-days.jpg",
+      "aiMemoryId": "memory-hangzhou",
+      "summary": "3 天 · 1 座城市 · 7 个景点 · 36 张照片",
+      "visibility": "private"
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 20,
+    "total": 1,
+    "hasMore": false
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+
+Pagination:
+
+Required.
+
+### 6.13 Get Trip Detail
+
+```http
+GET /trips/{tripId}
+```
+
+Path parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `tripId` | string | Yes | Trip ID. |
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `include` | string | No | Comma-separated: `cities,spots,checkIns,photos,aiMemory`. |
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "trip": {
+      "id": "hangzhou-3-days",
+      "userId": "u-nicola",
+      "title": "杭州 3 日游",
+      "cityIds": ["hangzhou"],
+      "startDate": "2026-05-01",
+      "endDate": "2026-05-03",
+      "days": 3,
+      "spotIds": ["west-lake", "leifeng-pagoda"],
+      "checkInIds": ["ci-west-lake"],
+      "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+      "photoCount": 36,
+      "coverUrl": "https://cdn.travelaround.app/trips/hangzhou-3-days.jpg",
+      "aiMemoryId": "memory-hangzhou",
+      "summary": "3 天 · 1 座城市 · 7 个景点 · 36 张照片",
+      "visibility": "private",
+      "createdAt": "2026-05-03T12:00:00.000Z",
+      "updatedAt": "2026-06-06T14:00:00.000Z"
+    },
+    "cities": [],
+    "spots": [],
+    "checkIns": [],
+    "photos": [],
+    "aiMemory": null
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `FORBIDDEN`
+- `TRIP_NOT_FOUND`
+
+Pagination:
+
+Not needed for MVP. If a trip has many photos later, add `/trips/{tripId}/photos`.
+
+### 6.14 Generate AI Memory
+
+Starts or immediately completes AI memory generation. MVP can return completed content synchronously; production can return `queued` and poll by memory ID.
+
+```http
+POST /trips/{tripId}/ai-memories
+```
+
+Request:
+
+```json
+{
+  "style": "自然日记",
+  "forceRegenerate": false,
+  "source": {
+    "includeSpotIds": ["west-lake", "broken-bridge"],
+    "includePhotoIds": ["img_01JZ8F3M9TVT4"],
+    "includeMoodText": true
+  }
+}
+```
+
+Response `201`:
+
+```json
+{
+  "data": {
+    "id": "memory-trip_01JZ8F3M9TVT4",
+    "tripId": "hangzhou-3-days",
+    "title": "把西湖走成一段回忆",
+    "summary": "3 天，1 座城市，4 个景点，36 张照片。",
+    "content": "这次杭州旅行一共 3 天，地图上又亮起了西湖、断桥残雪...",
+    "style": "自然日记",
+    "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+    "spotIds": ["west-lake", "broken-bridge"],
+    "status": "completed",
+    "generatedAt": "2026-06-06T14:00:00.000Z"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `TRIP_NOT_FOUND`
+- `FORBIDDEN`
+- `AI_MEMORY_NOT_READY`
+- `VALIDATION_ERROR`
+- `RATE_LIMITED`
+
+Pagination:
+
+Not needed.
+
+### 6.15 Get AI Memory
+
+```http
+GET /ai-memories/{memoryId}
+```
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "id": "memory-hangzhou",
+    "tripId": "hangzhou-3-days",
+    "title": "在杭州，把时间走慢",
+    "summary": "3 天，1 座城市，7 个景点，36 张照片。",
+    "content": "清晨的西湖像一张安静的地图...",
+    "style": "自然日记",
+    "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+    "spotIds": ["west-lake", "broken-bridge"],
+    "status": "completed",
+    "generatedAt": "2026-06-06T14:00:00.000Z"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `FORBIDDEN`
+- `AI_MEMORY_NOT_FOUND`
+
+Pagination:
+
+Not needed.
+
+### 6.16 Get Achievements And Quest Progress
+
+Returns the data currently used by the Achievements page: badges plus theme quest progress.
+
+```http
+GET /achievements
+```
+
+Query parameters:
+
+| Name | Type | Required | Description |
+| --- | --- | --- | --- |
+| `status` | string | No | `all`, `unlocked`, `locked`. Default `all`. |
+| `includeQuests` | boolean | No | Include theme quest progress. Default `true`. |
+
+Response `200`:
+
+```json
+{
+  "data": {
+    "summary": {
+      "level": "Lv.12",
+      "title": "城市漫游者",
+      "unlockedCount": 14,
+      "nextAchievementId": "west-lake-collector"
+    },
+    "achievements": [
+      {
+        "id": "west-lake-first",
+        "title": "西湖初印象",
+        "description": "打卡任意 1 个西湖十景",
+        "unlocked": true,
+        "unlockedAt": "2026-05-01",
+        "tone": "gold"
+      }
+    ],
+    "quests": [
+      {
+        "id": "west-lake-ten",
+        "title": "西湖十景",
+        "subtitle": "4 / 10 已点亮",
+        "description": "沿着湖岸和山影收集杭州最经典的十个景致。",
+        "progress": 4,
+        "total": 10,
+        "coverUrl": "https://cdn.travelaround.app/quests/west-lake-ten.jpg",
+        "rewardAchievementId": "west-lake-collector",
+        "spotIds": ["west-lake", "broken-bridge"],
+        "cityIds": ["hangzhou"]
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `VALIDATION_ERROR`
+
+Pagination:
+
+Not required for MVP. Add page-based pagination if badge catalog grows.
+
+## 7. Backend MVP Data Tables
+
+This is not implementation, but these table names map cleanly to a later Spring Boot service:
+
+- `users`
+- `cities`
+- `spots`
+- `check_ins`
+- `trips`
+- `trip_cities`
+- `trip_spots`
+- `trip_check_ins`
+- `images`
+- `ai_memories`
+- `achievements`
+- `user_achievements`
+- `theme_quests`
+- `theme_quest_spots`
+- `theme_quest_cities`
+
+## 8. Service Boundaries
+
+Suggested Spring Boot package/module boundaries:
+
+- User service: `/users/me`, user stats.
+- Place service: `/cities`, `/spots`, `/spots/nearby`.
+- Check-in service: `/check-ins`, check-in validation, derived lit state.
+- Trip service: `/trips`.
+- Image service: `/images/upload-url`, `/images/{imageId}/confirm`.
+- AI memory service: `/trips/{tripId}/ai-memories`, `/ai-memories/{memoryId}`.
+- Achievement service: `/achievements`, quest progress recalculation.
+
+For Phase 5 implementation, start with user, place, check-in, and trip persistence before adding real image storage or a real AI provider.
