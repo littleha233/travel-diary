@@ -8,6 +8,7 @@ export type Trip = {
   spotIds: string[];
   checkInIds: string[];
   photoUrls: string[];
+  photoCount: number;
   coverUrl: string;
   aiMemoryId?: string;
   summary: string;

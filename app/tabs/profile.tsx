@@ -74,7 +74,7 @@ export default function ProfileScreen() {
       </View>
       <View style={styles.entries}>
         <Entry label="我的旅行" value={primaryTrip?.title ?? '暂无旅行记录'} onPress={() => primaryTrip && router.push(`/trip/${primaryTrip.id}`)} />
-        <Entry label="我的照片" value={`${primaryTrip?.photoUrls.length ?? 0} 张旅行照片`} icon={<Camera size={20} color={theme.colors.mint} />} />
+        <Entry label="我的照片" value={`${primaryTrip ? primaryTrip.photoCount ?? primaryTrip.photoUrls.length : 0} 张旅行照片`} icon={<Camera size={20} color={theme.colors.mint} />} />
         <Entry label="设置" value="隐私与账号" onPress={() => router.push('/settings')} />
       </View>
     </Screen>

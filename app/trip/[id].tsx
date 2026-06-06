@@ -39,7 +39,7 @@ export default function TripDetailScreen() {
           <Stat value={`${trip.days}`} label="天" />
           <Stat value={`${trip.cityIds.length}`} label="城市" />
           <Stat value={`${trip.spotIds.length}`} label="景点" />
-          <Stat value="36" label="照片" />
+          <Stat value={`${trip.photoCount ?? trip.photoUrls.length}`} label="照片" />
         </View>
       </AppCard>
       <SectionHeader title="已打卡景点" />
