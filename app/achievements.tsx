@@ -1,10 +1,15 @@
 import { StyleSheet, View } from 'react-native';
 import { AchievementBadge, AppCard, AppText, DetailHeader, ProgressBar, Screen, SectionHeader } from '@/components';
-import { achievements, quests } from '@/mock';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 import { getProgressPercent } from '@/utils/travelStats';
 
 export default function AchievementsScreen() {
+  const { achievements, quests } = useTravelStore((state) => ({
+    achievements: state.achievements,
+    quests: state.quests,
+  }));
+
   return (
     <Screen>
       <DetailHeader title="成就页" subtitle="徽章、主题任务、完成度" />

@@ -1,17 +1,24 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Path, Line, Circle } from 'react-native-svg';
 import { router } from 'expo-router';
-import { cities } from '@/mock';
+import { cities as fallbackCities } from '@/mock';
+import { City } from '@/types/city';
 import { theme } from '@/theme/theme';
 import { GlowPoint } from './GlowPoint';
 import { AppText } from './AppText';
 
 type MapPreviewProps = {
   compact?: boolean;
+  cities?: City[];
+  litCityCount?: number;
+  provinceCount?: number;
+  exploredSpotCount?: number;
 };
 
-export function MapPreview({ compact = false }: MapPreviewProps) {
+export function MapPreview({ compact = false, cities = fallbackCities, litCityCount, provinceCount, exploredSpotCount }: MapPreviewProps) {
   const visibleCities = compact ? cities.slice(0, 7) : cities;
+  const dynamicLitCityCount = litCityCount ?? cities.filter((city) => city.lit).length;
+  const dynamicProvinceCount = provinceCount ?? new Set(cities.filter((city) => city.lit).map((city) => city.province)).size;
 
   return (
     <View style={[styles.map, compact && styles.compact]}>
@@ -63,7 +70,7 @@ export function MapPreview({ compact = false }: MapPreviewProps) {
           key={city.id}
           x={city.mapX}
           y={city.mapY}
-          tone={index % 7 === 0 ? 'gold' : index % 5 === 0 ? 'blue' : 'mint'}
+          tone={!city.lit ? 'gray' : index % 7 === 0 ? 'gold' : index % 5 === 0 ? 'blue' : 'mint'}
           onPress={() => router.push(`/city/${city.id}`)}
         />
       ))}
@@ -86,7 +93,7 @@ export function MapPreview({ compact = false }: MapPreviewProps) {
           </View>
           <View style={styles.capsule}>
             <AppText variant="caption" color={theme.colors.white}>
-              已点亮 18 座城市 · 7 个省份探索中
+              已点亮 {dynamicLitCityCount} 座城市 · {dynamicProvinceCount} 个省份 · {exploredSpotCount ?? 0} 个景点
             </AppText>
           </View>
         </>

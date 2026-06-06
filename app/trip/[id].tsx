@@ -1,12 +1,18 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { BookOpen, Sparkles } from 'lucide-react-native';
-import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
-import { trips, spots } from '@/mock';
+import { AppButton, AppCard, AppText, DetailHeader, EmptyState, ErrorState, PhotoGrid, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { aiMemories, checkIns, trips, spots } = useTravelStore((state) => ({
+    aiMemories: state.aiMemories,
+    checkIns: state.checkIns,
+    trips: state.trips,
+    spots: state.spots,
+  }));
   const trip = trips.find((item) => item.id === id);
 
   if (!trip) {
@@ -19,6 +25,8 @@ export default function TripDetailScreen() {
   }
 
   const tripSpots = spots.filter((spot) => trip.spotIds.includes(spot.id));
+  const tripCheckIns = checkIns.filter((checkIn) => checkIn.tripId === trip.id);
+  const latestMemory = aiMemories.find((memory) => memory.id === trip.aiMemoryId) ?? aiMemories.find((memory) => memory.tripId === trip.id);
 
   return (
     <Screen>
@@ -35,10 +43,29 @@ export default function TripDetailScreen() {
         </View>
       </AppCard>
       <SectionHeader title="已打卡景点" />
+      {tripSpots.length ? (
+        <View style={styles.list}>
+          {tripSpots.map((spot) => (
+            <SpotCard key={spot.id} spot={spot} />
+          ))}
+        </View>
+      ) : (
+        <EmptyState title="暂无打卡景点" message="完成一次点亮后，这里会出现新的旅行记录。" />
+      )}
+      <SectionHeader title="本地打卡记录" />
       <View style={styles.list}>
-        {tripSpots.map((spot) => (
-          <SpotCard key={spot.id} spot={spot} />
-        ))}
+        {tripCheckIns.map((checkIn) => {
+          const spot = spots.find((item) => item.id === checkIn.spotId);
+          return (
+            <AppCard key={checkIn.id} style={styles.checkIn}>
+              <StatusChip label={checkIn.type === 'mock-gps' ? 'Mock GPS' : '手动补卡'} />
+              <View style={styles.memoryText}>
+                <AppText variant="h3">{spot?.name ?? '未知景点'}</AppText>
+                <AppText variant="caption">{new Date(checkIn.createdAt).toLocaleString()} · {checkIn.moodText}</AppText>
+              </View>
+            </AppCard>
+          );
+        })}
       </View>
       <SectionHeader title="照片墙" />
       <PhotoGrid photos={trip.photoUrls} />
@@ -46,13 +73,13 @@ export default function TripDetailScreen() {
       <AppCard style={styles.memory}>
         <BookOpen size={26} color={theme.colors.purple} />
         <View style={styles.memoryText}>
-          <AppText variant="h3">在杭州，把时间走慢</AppText>
-          <AppText variant="caption">已生成 · 自然日记风格</AppText>
+          <AppText variant="h3">{latestMemory?.title ?? '生成一篇新的旅行回忆'}</AppText>
+          <AppText variant="caption">{latestMemory ? `已生成 · ${latestMemory.style}` : '尚未生成本地 AI 回忆'}</AppText>
         </View>
         <AppButton
-          label="查看"
+          label={latestMemory ? '查看' : '生成'}
           icon={<Sparkles size={16} color={theme.colors.mapDarkAlt} />}
-          onPress={() => router.push(`/ai-memory/${trip.aiMemoryId}`)}
+          onPress={() => router.push(`/ai-memory/${latestMemory?.id ?? trip.id}`)}
         />
       </AppCard>
     </Screen>
@@ -89,5 +116,10 @@ const styles = StyleSheet.create({
   },
   memoryText: {
     flex: 1,
+  },
+  checkIn: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
   },
 });

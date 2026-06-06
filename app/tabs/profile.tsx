@@ -1,11 +1,37 @@
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Camera, ChevronRight, Settings } from 'lucide-react-native';
-import { AchievementBadge, AppCard, AppText, MapPreview, Screen, SectionHeader, StatusChip } from '@/components';
-import { achievements, mockUser, trips } from '@/mock';
+import { AchievementBadge, AppCard, AppText, ErrorState, LoadingState, MapPreview, Screen, SectionHeader, StatusChip } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function ProfileScreen() {
+  const { status, errorMessage, achievements, cities, trips, user } = useTravelStore((state) => ({
+    status: state.status,
+    errorMessage: state.errorMessage,
+    achievements: state.achievements,
+    cities: state.cities,
+    trips: state.trips,
+    user: state.user,
+  }));
+  const primaryTrip = trips[0];
+
+  if (status === 'loading') {
+    return (
+      <Screen dark>
+        <LoadingState label="正在恢复旅行档案..." />
+      </Screen>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Screen dark>
+        <ErrorState message={errorMessage} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen dark>
       <View style={styles.top}>
@@ -18,19 +44,19 @@ export default function ProfileScreen() {
         </Pressable>
       </View>
       <AppCard variant="dark" style={styles.profile}>
-        <Image source={{ uri: mockUser.avatarUrl }} style={styles.avatar} />
+        <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
         <View style={styles.profileText}>
-          <AppText variant="h2" color={theme.colors.white}>{mockUser.nickname}</AppText>
-          <AppText variant="caption" color="#C7C4EA">{mockUser.level} {mockUser.title} · City Wanderer</AppText>
+          <AppText variant="h2" color={theme.colors.white}>{user.nickname}</AppText>
+          <AppText variant="caption" color="#C7C4EA">{user.level} {user.title} · City Wanderer</AppText>
           <StatusChip label="数字旅行护照已同步" tone="gold" />
         </View>
       </AppCard>
       <View style={styles.stats}>
         {[
-          ['18', '已点亮城市'],
-          ['72', '探索景点'],
-          ['11', 'AI 回忆'],
-          ['14', '解锁徽章'],
+          [`${user.litCityCount}`, '已点亮城市'],
+          [`${user.exploredSpotCount}`, '探索景点'],
+          [`${user.aiMemoryCount}`, 'AI 回忆'],
+          [`${user.achievementCount}`, '解锁徽章'],
         ].map(([value, label]) => (
           <AppCard key={label} variant="dark" style={styles.stat}>
             <AppText variant="h2" color={theme.colors.white}>{value}</AppText>
@@ -39,7 +65,7 @@ export default function ProfileScreen() {
         ))}
       </View>
       <SectionHeader title="个人地图摘要" action="查看" dark />
-      <MapPreview compact />
+      <MapPreview compact cities={cities} litCityCount={user.litCityCount} provinceCount={user.provinceCount} exploredSpotCount={user.exploredSpotCount} />
       <SectionHeader title="徽章墙" action="全部" dark />
       <View style={styles.badges}>
         {achievements.slice(0, 3).map((achievement) => (
@@ -47,8 +73,8 @@ export default function ProfileScreen() {
         ))}
       </View>
       <View style={styles.entries}>
-        <Entry label="我的旅行" value={trips[0].title} onPress={() => router.push(`/trip/${trips[0].id}`)} />
-        <Entry label="我的照片" value="36 张旅行照片" icon={<Camera size={20} color={theme.colors.mint} />} />
+        <Entry label="我的旅行" value={primaryTrip?.title ?? '暂无旅行记录'} onPress={() => primaryTrip && router.push(`/trip/${primaryTrip.id}`)} />
+        <Entry label="我的照片" value={`${primaryTrip?.photoUrls.length ?? 0} 张旅行照片`} icon={<Camera size={20} color={theme.colors.mint} />} />
         <Entry label="设置" value="隐私与账号" onPress={() => router.push('/settings')} />
       </View>
     </Screen>

@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { Bell, Image, Lock, MapPin, User } from 'lucide-react-native';
-import { AppCard, AppText, DetailHeader, Screen, StatusChip } from '@/components';
+import { AppButton, AppCard, AppText, DetailHeader, Screen, StatusChip } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 const items = [
@@ -12,6 +13,8 @@ const items = [
 ];
 
 export default function SettingsScreen() {
+  const resetLocalProgress = useTravelStore((state) => state.resetLocalProgress);
+
   return (
     <Screen>
       <DetailHeader title="设置" subtitle="账号、隐私、权限" />
@@ -30,6 +33,11 @@ export default function SettingsScreen() {
           );
         })}
       </View>
+      <AppCard style={styles.resetCard}>
+        <AppText variant="h3">本地 mock 数据</AppText>
+        <AppText variant="body">清空持久化后的进度，回到 Stage 2 初始状态，方便重复验收点亮流程。</AppText>
+        <AppButton label="重置本地进度" variant="secondary" onPress={resetLocalProgress} />
+      </AppCard>
     </Screen>
   );
 }
@@ -45,5 +53,9 @@ const styles = StyleSheet.create({
   },
   text: {
     flex: 1,
+  },
+  resetCard: {
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.xl,
   },
 });

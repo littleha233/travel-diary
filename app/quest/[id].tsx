@@ -1,12 +1,17 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { AchievementBadge, AppCard, AppText, DetailHeader, ErrorState, ProgressBar, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
-import { achievements, quests, spots } from '@/mock';
+import { useTravelStore } from '@/store/travelStore';
 import { getProgressPercent } from '@/utils/travelStats';
 import { theme } from '@/theme/theme';
 
 export default function QuestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { achievements, quests, spots } = useTravelStore((state) => ({
+    achievements: state.achievements,
+    quests: state.quests,
+    spots: state.spots,
+  }));
   const quest = quests.find((item) => item.id === id);
 
   if (!quest) {
