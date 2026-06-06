@@ -6,10 +6,11 @@ import { theme } from '@/theme/theme';
 
 export default function CityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, quests } = useTravelStore((state) => ({
+  const { cities, spots, quests, trips } = useTravelStore((state) => ({
     cities: state.cities,
     spots: state.spots,
     quests: state.quests,
+    trips: state.trips,
   }));
   const city = cities.find((item) => item.id === id);
 
@@ -25,6 +26,9 @@ export default function CityDetailScreen() {
   const citySpots = spots.filter((spot) => spot.cityId === city.id);
   const relatedQuests = quests.filter((quest) => quest.cityIds.includes(city.id));
   const litCount = citySpots.filter((spot) => spot.status === 'lit').length;
+  const cityPhotoCount = trips
+    .filter((trip) => trip.cityIds.includes(city.id))
+    .reduce((total, trip) => total + (trip.photoCount ?? trip.photoUrls.length), 0);
 
   return (
     <Screen>
@@ -41,7 +45,7 @@ export default function CityDetailScreen() {
         <View style={styles.stats}>
           <Stat value={`${litCount}/${citySpots.length || city.spotIds.length}`} label="景点进度" />
           <Stat value={city.visitedAt ? '1' : '0'} label="旅行次数" />
-          <Stat value="36" label="照片" />
+          <Stat value={`${cityPhotoCount}`} label="照片" />
         </View>
       </AppCard>
       <SectionHeader title="景点列表" action="全部" />

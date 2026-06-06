@@ -78,6 +78,7 @@ function cloneInitialState() {
       spotIds: [...trip.spotIds],
       checkInIds: [...trip.checkInIds],
       photoUrls: [...trip.photoUrls],
+      photoCount: trip.photoCount,
     })),
     checkIns: initialCheckIns.map((checkIn) => ({ ...checkIn })),
     aiMemories: initialAiMemories.map((memory) => ({
@@ -90,6 +91,10 @@ function cloneInitialState() {
 }
 
 function syncDerivedState(state: TravelData): TravelData {
+  const normalizedTrips = state.trips.map((trip) => ({
+    ...trip,
+    photoCount: trip.photoCount ?? trip.photoUrls.length,
+  }));
   const litSpotIds = new Set(state.spots.filter((spot) => spot.status === 'lit').map((spot) => spot.id));
   const litCityIds = new Set(state.cities.filter((city) => city.lit).map((city) => city.id));
   const provinceCount = new Set(state.cities.filter((city) => city.lit).map((city) => city.province)).size;
@@ -152,6 +157,7 @@ function syncDerivedState(state: TravelData): TravelData {
   return {
     ...state,
     user,
+    trips: normalizedTrips,
     plans,
     quests,
     achievements,
@@ -238,7 +244,8 @@ export const useTravelStore = create<TravelStoreState>()(
                   spotIds: Array.from(new Set([...trip.spotIds, spotId])),
                   checkInIds: Array.from(new Set([...trip.checkInIds, createdCheckIn!.id])),
                   photoUrls: Array.from(new Set([...trip.photoUrls, targetSpot.coverUrl || basePhoto])),
-                  summary: `${trip.days} 天 · ${trip.cityIds.length} 座城市 · ${Array.from(new Set([...trip.spotIds, spotId])).length} 个景点 · ${Math.max(36, trip.photoUrls.length + 1)} 张照片`,
+                  photoCount: (trip.photoCount ?? trip.photoUrls.length) + 1,
+                  summary: `${trip.days} 天 · ${trip.cityIds.length} 座城市 · ${Array.from(new Set([...trip.spotIds, spotId])).length} 个景点 · ${(trip.photoCount ?? trip.photoUrls.length) + 1} 张照片`,
                 }
               : trip
           );
@@ -307,7 +314,7 @@ export const useTravelStore = create<TravelStoreState>()(
           id: `memory-${tripId}-${Date.now()}`,
           tripId,
           title,
-          summary: `${trip.days} 天，${trip.cityIds.length} 座城市，${tripSpots.length} 个景点，${trip.photoUrls.length} 张照片。`,
+          summary: `${trip.days} 天，${trip.cityIds.length} 座城市，${tripSpots.length} 个景点，${trip.photoCount ?? trip.photoUrls.length} 张照片。`,
           content,
           style: '自然日记',
           photoUrls: trip.photoUrls,

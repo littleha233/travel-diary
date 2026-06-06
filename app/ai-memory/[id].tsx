@@ -33,7 +33,7 @@ export default function AIMemoryScreen() {
       <AppCard variant="dark" style={styles.card}>
         <AppText variant="h3" color={theme.colors.white}>{activeTrip?.title ?? '杭州周末探索'}</AppText>
         <View style={styles.chips}>
-          {[`${activeTrip?.spotIds.length ?? 0} 个景点`, `${photoUrls.length} 张照片`, `${activeTrip?.days ?? 0} 天行程`, memory?.style ?? '自然日记'].map((label, index) => (
+          {[`${activeTrip?.spotIds.length ?? 0} 个景点`, `${activeTrip ? activeTrip.photoCount ?? activeTrip.photoUrls.length : photoUrls.length} 张照片`, `${activeTrip?.days ?? 0} 天行程`, memory?.style ?? '自然日记'].map((label, index) => (
             <StatusChip key={label} label={label} tone={index === 0 ? 'mint' : 'gray'} />
           ))}
         </View>
