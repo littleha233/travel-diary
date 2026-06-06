@@ -7,4 +7,5 @@ export type AIMemory = {
   style: string;
   photoUrls: string[];
   spotIds: string[];
+  generatedAt?: string;
 };

@@ -1,15 +1,37 @@
 import { useState } from 'react';
 import { Modal, StyleSheet, View } from 'react-native';
 import { Check, LocateFixed, MapPin, Sparkles } from 'lucide-react-native';
-import { AppButton, AppCard, AppText, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
-import { spots } from '@/mock';
+import { AppButton, AppCard, AppText, EmptyState, ErrorState, LoadingState, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { Spot } from '@/types/spot';
 import { theme } from '@/theme/theme';
 
 export default function CheckInScreen() {
+  const { status, errorMessage, spots, lightUpSpot } = useTravelStore((state) => ({
+    status: state.status,
+    errorMessage: state.errorMessage,
+    spots: state.spots,
+    lightUpSpot: state.lightUpSpot,
+  }));
   const nearbySpots = spots.filter((spot) => spot.cityId === 'hangzhou').slice(1, 5);
   const [selectedSpot, setSelectedSpot] = useState<Spot | null>(null);
   const [successSpot, setSuccessSpot] = useState<Spot | null>(null);
+
+  if (status === 'loading') {
+    return (
+      <Screen dark>
+        <LoadingState label="正在恢复附近探索点..." />
+      </Screen>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Screen dark>
+        <ErrorState message={errorMessage} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen dark>
@@ -35,11 +57,15 @@ export default function CheckInScreen() {
         <StatusChip label="已点亮" />
       </AppCard>
       <SectionHeader title="可点亮地点" action="重新定位" dark />
-      <View style={styles.list}>
-        {nearbySpots.map((spot) => (
-          <SpotCard key={spot.id} spot={spot} onLightUp={spot.status === 'lit' ? undefined : setSelectedSpot} />
-        ))}
-      </View>
+      {nearbySpots.length ? (
+        <View style={styles.list}>
+          {nearbySpots.map((spot) => (
+            <SpotCard key={spot.id} spot={spot} onLightUp={spot.status === 'lit' ? undefined : setSelectedSpot} />
+          ))}
+        </View>
+      ) : (
+        <EmptyState title="附近暂无可点亮地点" message="你仍然可以通过手动搜索补卡。" />
+      )}
       <AppCard variant="dark" style={styles.search}>
         <AppText variant="body" color="#D8D4F4">搜索地点 / 手动补卡</AppText>
       </AppCard>
@@ -54,6 +80,9 @@ export default function CheckInScreen() {
               icon={<Sparkles size={18} color={theme.colors.mapDarkAlt} />}
               fullWidth
               onPress={() => {
+                if (selectedSpot) {
+                  lightUpSpot(selectedSpot.id);
+                }
                 setSuccessSpot(selectedSpot);
                 setSelectedSpot(null);
               }}

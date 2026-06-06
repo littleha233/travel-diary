@@ -1,9 +1,33 @@
 import { Bell, LocateFixed } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { AppText, MapPreview, Screen } from '@/components';
+import { AppText, ErrorState, LoadingState, MapPreview, Screen } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function HomeScreen() {
+  const { status, errorMessage, cities, user } = useTravelStore((state) => ({
+    status: state.status,
+    errorMessage: state.errorMessage,
+    cities: state.cities,
+    user: state.user,
+  }));
+
+  if (status === 'loading') {
+    return (
+      <Screen dark scroll={false}>
+        <LoadingState label="正在恢复本地旅行地图..." />
+      </Screen>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Screen dark>
+        <ErrorState message={errorMessage} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen dark scroll={false}>
       <View style={styles.content}>
@@ -17,7 +41,12 @@ export default function HomeScreen() {
             <Bell size={22} color={theme.colors.white} />
           </View>
         </View>
-        <MapPreview />
+        <MapPreview
+          cities={cities}
+          litCityCount={user.litCityCount}
+          provinceCount={user.provinceCount}
+          exploredSpotCount={user.exploredSpotCount}
+        />
       </View>
     </Screen>
   );

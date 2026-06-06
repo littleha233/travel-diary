@@ -1,5 +1,6 @@
 export * from './achievements';
 export * from './aiMemories';
+export * from './checkIns';
 export * from './cities';
 export * from './community';
 export * from './plans';

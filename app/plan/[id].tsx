@@ -1,11 +1,15 @@
 import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PlanCard, Screen, SectionHeader, SpotCard } from '@/components';
-import { plans, spots } from '@/mock';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { plans, spots } = useTravelStore((state) => ({
+    plans: state.plans,
+    spots: state.spots,
+  }));
   const plan = plans.find((item) => item.id === id);
 
   if (!plan) {

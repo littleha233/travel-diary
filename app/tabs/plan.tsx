@@ -1,13 +1,36 @@
-import { router } from 'expo-router';
 import { Heart, MapPinned } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
-import { AppCard, AppText, PlanCard, Screen, SectionHeader, StatusChip, ThemeQuestCard } from '@/components';
-import { cities, plans, quests } from '@/mock';
+import { AppButton, AppCard, AppText, EmptyState, ErrorState, LoadingState, PlanCard, Screen, SectionHeader, StatusChip, ThemeQuestCard } from '@/components';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function PlanScreen() {
+  const { status, errorMessage, cities, plans, quests, createWeekendPlan } = useTravelStore((state) => ({
+    status: state.status,
+    errorMessage: state.errorMessage,
+    cities: state.cities,
+    plans: state.plans,
+    quests: state.quests,
+    createWeekendPlan: state.createWeekendPlan,
+  }));
   const plan = plans[0];
-  const wishlist = cities.filter((city) => plan.wishlistCityIds.includes(city.id));
+  const wishlist = plan ? cities.filter((city) => plan.wishlistCityIds.includes(city.id)) : [];
+
+  if (status === 'loading') {
+    return (
+      <Screen dark>
+        <LoadingState label="正在恢复旅行计划..." />
+      </Screen>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <Screen dark>
+        <ErrorState message={errorMessage} />
+      </Screen>
+    );
+  }
 
   return (
     <Screen dark>
@@ -16,9 +39,9 @@ export default function PlanScreen() {
           <AppText variant="title" color={theme.colors.white}>旅行计划</AppText>
           <AppText variant="caption" color="#C7C4EA">Next Mission · 规划下一次点亮</AppText>
         </View>
-        <StatusChip label="＋ 新计划" tone="purple" />
+        <AppButton label="＋ 新计划" variant="secondary" onPress={createWeekendPlan} />
       </View>
-      <PlanCard plan={plan} />
+      {plan ? <PlanCard plan={plan} /> : <EmptyState title="还没有旅行计划" message="创建一个周末探索计划，先把想去的地点收起来。" action="创建计划" onAction={createWeekendPlan} />}
       <SectionHeader title="心愿地图" action="管理" dark />
       <AppCard variant="dark" style={styles.wishlist}>
         <MapPinned size={26} color={theme.colors.mint} />
@@ -29,11 +52,15 @@ export default function PlanScreen() {
         <Heart size={22} color={theme.colors.gold} />
       </AppCard>
       <SectionHeader title="主题探索" action="全部" dark />
-      <View style={styles.list}>
-        {quests.map((quest) => (
-          <ThemeQuestCard key={quest.id} quest={quest} />
-        ))}
-      </View>
+      {quests.length ? (
+        <View style={styles.list}>
+          {quests.map((quest) => (
+            <ThemeQuestCard key={quest.id} quest={quest} />
+          ))}
+        </View>
+      ) : (
+        <EmptyState title="暂无主题任务" message="后续会从本地 mock 数据恢复任务进度。" />
+      )}
     </Screen>
   );
 }

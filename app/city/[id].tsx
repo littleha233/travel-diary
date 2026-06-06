@@ -1,13 +1,17 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { AppCard, AppText, DetailHeader, ErrorState, Screen, SectionHeader, SpotCard, StatusChip, ThemeQuestCard } from '@/components';
-import { quests } from '@/mock';
-import { getCityById, getSpotsByCity } from '@/utils/travelStats';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function CityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const city = getCityById(id);
+  const { cities, spots, quests } = useTravelStore((state) => ({
+    cities: state.cities,
+    spots: state.spots,
+    quests: state.quests,
+  }));
+  const city = cities.find((item) => item.id === id);
 
   if (!city) {
     return (
@@ -18,7 +22,7 @@ export default function CityDetailScreen() {
     );
   }
 
-  const citySpots = getSpotsByCity(city.id);
+  const citySpots = spots.filter((spot) => spot.cityId === city.id);
   const relatedQuests = quests.filter((quest) => quest.cityIds.includes(city.id));
   const litCount = citySpots.filter((spot) => spot.status === 'lit').length;
 

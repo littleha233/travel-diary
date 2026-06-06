@@ -2,13 +2,18 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { MapPin, Sparkles } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, StatusChip } from '@/components';
-import { trips } from '@/mock';
-import { getCityById, getSpotById } from '@/utils/travelStats';
+import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const spot = getSpotById(id);
+  const { cities, spots, trips, lightUpSpot } = useTravelStore((state) => ({
+    cities: state.cities,
+    spots: state.spots,
+    trips: state.trips,
+    lightUpSpot: state.lightUpSpot,
+  }));
+  const spot = spots.find((item) => item.id === id);
 
   if (!spot) {
     return (
@@ -19,8 +24,9 @@ export default function SpotDetailScreen() {
     );
   }
 
-  const city = getCityById(spot.cityId);
+  const city = cities.find((item) => item.id === spot.cityId);
   const isLit = spot.status === 'lit';
+  const primaryTrip = trips[0];
 
   return (
     <Screen>
@@ -36,14 +42,20 @@ export default function SpotDetailScreen() {
         </View>
         <AppText variant="body">{spot.description}</AppText>
         <AppButton
-          label={isLit ? '查看旅行记录' : '去打卡页点亮'}
+          label={isLit ? '查看旅行记录' : '立即点亮'}
           icon={isLit ? <Sparkles size={18} color={theme.colors.mapDarkAlt} /> : <MapPin size={18} color={theme.colors.mapDarkAlt} />}
-          onPress={() => (isLit ? router.push(`/trip/${trips[0].id}`) : router.push('/tabs/checkin'))}
+          onPress={() => {
+            if (isLit) {
+              router.push(`/trip/${primaryTrip.id}`);
+              return;
+            }
+            lightUpSpot(spot.id);
+          }}
           fullWidth
         />
       </AppCard>
       <SectionHeader title="用户照片" />
-      {isLit ? <PhotoGrid photos={trips[0].photoUrls.slice(0, 3)} /> : <AppCard><AppText variant="body">点亮后可以在这里看到你的旅行照片。</AppText></AppCard>}
+      {isLit ? <PhotoGrid photos={primaryTrip.photoUrls.slice(0, 3)} /> : <AppCard><AppText variant="body">点亮后可以在这里看到你的旅行照片。</AppText></AppCard>}
       <SectionHeader title="相关主题" />
       <AppCard>
         <AppText variant="h3">{spot.questIds.includes('west-lake-ten') ? '西湖十景' : '暂无主题任务'}</AppText>

@@ -9,4 +9,5 @@ export type TravelUser = {
   aiMemoryCount: number;
   achievementCount: number;
   provinceCount: number;
+  tripCount?: number;
 };
