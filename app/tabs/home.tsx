@@ -1,16 +1,18 @@
 import { Bell, LocateFixed } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { AppText, ErrorState, LoadingState, MapPreview, Screen } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function HomeScreen() {
-  const { status, errorMessage, cities, user } = useTravelStore((state) => ({
+  const { status, errorMessage, cities, user, retry } = useTravelStore(useShallow((state) => ({
     status: state.status,
     errorMessage: state.errorMessage,
     cities: state.cities,
     user: state.user,
-  }));
+    retry: state.retry,
+  })));
 
   if (status === 'loading') {
     return (
@@ -23,7 +25,7 @@ export default function HomeScreen() {
   if (status === 'error') {
     return (
       <Screen dark>
-        <ErrorState message={errorMessage} />
+        <ErrorState message={errorMessage} onRetry={retry} />
       </Screen>
     );
   }

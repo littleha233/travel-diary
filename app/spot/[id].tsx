@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { MapPin, Sparkles } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
@@ -7,11 +8,11 @@ import { theme } from '@/theme/theme';
 
 export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, trips } = useTravelStore((state) => ({
+  const { cities, spots, trips } = useTravelStore(useShallow((state) => ({
     cities: state.cities,
     spots: state.spots,
     trips: state.trips,
-  }));
+  })));
   const spot = spots.find((item) => item.id === id);
 
   if (!spot) {

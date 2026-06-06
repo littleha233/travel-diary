@@ -1,5 +1,6 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { AchievementBadge, AppCard, AppText, DetailHeader, ErrorState, ProgressBar, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { getProgressPercent } from '@/utils/travelStats';
@@ -7,11 +8,11 @@ import { theme } from '@/theme/theme';
 
 export default function QuestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { achievements, quests, spots } = useTravelStore((state) => ({
+  const { achievements, quests, spots } = useTravelStore(useShallow((state) => ({
     achievements: state.achievements,
     quests: state.quests,
     spots: state.spots,
-  }));
+  })));
   const quest = quests.find((item) => item.id === id);
 
   if (!quest) {

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Image, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
@@ -86,13 +87,14 @@ function createLocatedSpots(spots: Spot[], currentLocation: GeoPoint | null): Lo
 }
 
 export default function CheckInScreen() {
-  const { status, errorMessage, cities, spots, lightUpSpot } = useTravelStore((state) => ({
+  const { status, errorMessage, cities, spots, lightUpSpot, retry } = useTravelStore(useShallow((state) => ({
     status: state.status,
     errorMessage: state.errorMessage,
     cities: state.cities,
     spots: state.spots,
     lightUpSpot: state.lightUpSpot,
-  }));
+    retry: state.retry,
+  })));
   const [currentLocation, setCurrentLocation] = useState<GeoPoint | null>(null);
   const [locationStatus, setLocationStatus] = useState<CapabilityStatus>('idle');
   const [locationMessage, setLocationMessage] = useState('点击定位后，TravelAround 会请求一次前台定位权限。');
@@ -215,13 +217,13 @@ export default function CheckInScreen() {
     }
   };
 
-  const confirmCheckIn = () => {
+  const confirmCheckIn = async () => {
     if (!selectedSpot) {
       return;
     }
 
     const checkInType = currentLocation && selectedSpot.isWithinRadius ? 'gps' : 'manual';
-    lightUpSpot(selectedSpot.id, {
+    const checkIn = await lightUpSpot(selectedSpot.id, {
       type: checkInType,
       moodText: note,
       photoUri: selectedPhoto?.uri,
@@ -229,8 +231,11 @@ export default function CheckInScreen() {
       location: currentLocation ?? undefined,
       distanceMeters: selectedSpot.computedDistanceMeters,
     });
-    setSuccessSpot(selectedSpot);
-    setSelectedSpot(null);
+
+    if (checkIn) {
+      setSuccessSpot(selectedSpot);
+      setSelectedSpot(null);
+    }
   };
 
   if (status === 'loading') {
@@ -244,7 +249,7 @@ export default function CheckInScreen() {
   if (status === 'error') {
     return (
       <Screen dark>
-        <ErrorState message={errorMessage} />
+        <ErrorState message={errorMessage} onRetry={retry} />
       </Screen>
     );
   }

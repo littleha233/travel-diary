@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { BookOpen, Sparkles } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, EmptyState, ErrorState, PhotoGrid, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
@@ -7,12 +8,12 @@ import { theme } from '@/theme/theme';
 
 export default function TripDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { aiMemories, checkIns, trips, spots } = useTravelStore((state) => ({
+  const { aiMemories, checkIns, trips, spots } = useTravelStore(useShallow((state) => ({
     aiMemories: state.aiMemories,
     checkIns: state.checkIns,
     trips: state.trips,
     spots: state.spots,
-  }));
+  })));
   const trip = trips.find((item) => item.id === id);
 
   if (!trip) {
