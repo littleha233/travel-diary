@@ -41,7 +41,7 @@ npm run typecheck
 
 ## Prototype Scope
 
-This phase uses mock data only. It does not connect to a real backend, real map SDK, real GPS location, real login, real image upload, or real AI generation.
+This phase uses mock data only. It does not connect to a real backend, real map SDK, real login, real image upload, or real AI generation.
 
 Implemented screens include:
 
@@ -56,3 +56,44 @@ Implemented screens include:
 - Achievements
 - Settings
 
+## Phase 3 Native Capabilities
+
+Implemented native-facing check-in capabilities:
+
+- Foreground location permission is requested only from the CheckIn screen when the user taps location.
+- Current GPS coordinates are read with `expo-location`.
+- Nearby check-in spots are calculated locally from mock spot coordinates and radius values.
+- Manual check-in remains available when location permission is denied, unavailable, or no nearby mock spot is found.
+- Photo library permission is requested only when the user chooses a check-in photo.
+- Selected photos are previewed before saving; on iOS/Android they are copied into the app document directory with `expo-file-system/legacy`.
+- Text-only check-ins remain available when photo permission is denied.
+
+Expo packages used:
+
+- `expo-location`
+- `expo-image-picker`
+- `expo-file-system`
+
+iOS / Android permission configuration:
+
+- iOS `NSLocationWhenInUseUsageDescription` explains that location is used for nearby check-in detection.
+- iOS `NSPhotoLibraryUsageDescription` explains that the photo library is used for optional local check-in photos.
+- Android permissions include `ACCESS_COARSE_LOCATION`, `ACCESS_FINE_LOCATION`, `READ_MEDIA_IMAGES`, and `READ_EXTERNAL_STORAGE`.
+- `app.json` configures the `expo-location` and `expo-image-picker` plugins with matching permission copy.
+
+Real-device test steps:
+
+1. Start the app with `npm start`.
+2. Open the app on iOS/Android via Expo Go for quick checks, or create a Development Build if you need to verify native permission strings from `app.json`.
+3. Navigate to the CheckIn tab and confirm no location prompt appears before tapping location.
+4. Tap location, allow permission, and test near a mock coordinate such as Hangzhou Broken Bridge: `30.2617, 120.1526`.
+5. Deny location permission and confirm manual check-in still works.
+6. During check-in, tap choose photo, allow or deny photo permission, and confirm both photo and text-only flows save locally.
+7. On Web, test in a browser that supports geolocation and also in a blocked/denied permission state.
+
+Known limitations:
+
+- Nearby place recognition is local math against mock coordinates, not a real POI or map SDK.
+- Web photo caching uses the selected browser URI directly; native iOS/Android copies the image into the app document directory.
+- Expo Go can exercise the APIs, but custom native permission copy is best verified in a Development Build.
+- No backend upload, cross-device sync, EXIF processing, or map geofence monitoring is included in this phase.

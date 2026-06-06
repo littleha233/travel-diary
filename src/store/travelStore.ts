@@ -22,6 +22,15 @@ import { TravelUser } from '@/types/user';
 
 type StoreStatus = 'loading' | 'ready' | 'error';
 
+type LightUpSpotOptions = {
+  type?: CheckInRecord['type'];
+  moodText?: string;
+  photoUri?: string;
+  cachedPhotoUri?: string;
+  location?: CheckInRecord['location'];
+  distanceMeters?: number;
+};
+
 type TravelStoreState = {
   status: StoreStatus;
   errorMessage?: string;
@@ -36,7 +45,7 @@ type TravelStoreState = {
   achievements: Achievement[];
   hydrateComplete: () => void;
   setError: (message: string) => void;
-  lightUpSpot: (spotId: string) => CheckInRecord | undefined;
+  lightUpSpot: (spotId: string, options?: LightUpSpotOptions) => CheckInRecord | undefined;
   createWeekendPlan: () => TravelPlan;
   generateAIMemory: (tripId: string) => AIMemory | undefined;
   resetLocalProgress: () => void;
@@ -48,8 +57,6 @@ type TravelData = Pick<
 >;
 
 const defaultTripId = 'hangzhou-3-days';
-const basePhoto =
-  'https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=500&q=80';
 
 function cloneInitialState() {
   return {
@@ -57,6 +64,7 @@ function cloneInitialState() {
     cities: initialCities.map((city) => ({ ...city, spotIds: [...city.spotIds], tags: [...city.tags] })),
     spots: initialSpots.map((spot) => ({
       ...spot,
+      coordinates: { ...spot.coordinates },
       tags: [...spot.tags],
       questIds: [...spot.questIds],
       photoIds: [...spot.photoIds],
@@ -186,7 +194,7 @@ export const useTravelStore = create<TravelStoreState>()(
       ...syncDerivedState(cloneInitialState()),
       hydrateComplete: () => set({ status: 'ready', errorMessage: undefined }),
       setError: (message) => set({ status: 'error', errorMessage: message }),
-      lightUpSpot: (spotId) => {
+      lightUpSpot: (spotId, options = {}) => {
         let createdCheckIn: CheckInRecord | undefined;
 
         set((current) => {
@@ -203,15 +211,21 @@ export const useTravelStore = create<TravelStoreState>()(
           }
 
           const now = new Date().toISOString();
+          const moodText = options.moodText?.trim() || `我点亮了 ${targetSpot.name}，新的旅行光点已经同步到地图。`;
           createdCheckIn = {
             id: `ci-${spotId}-${Date.now()}`,
             cityId: targetSpot.cityId,
             spotId,
             tripId: defaultTripId,
             createdAt: now,
-            moodText: `我点亮了 ${targetSpot.name}，新的旅行光点已经同步到地图。`,
-            type: 'mock-gps',
+            moodText,
+            type: options.type ?? 'mock-gps',
+            photoUri: options.photoUri,
+            cachedPhotoUri: options.cachedPhotoUri,
+            location: options.location,
+            distanceMeters: options.distanceMeters,
           };
+          const checkInPhotoUri = options.cachedPhotoUri ?? options.photoUri;
 
           const spots = current.spots.map((spot) =>
             spot.id === spotId
@@ -220,7 +234,9 @@ export const useTravelStore = create<TravelStoreState>()(
                   status: 'lit' as const,
                   canCheckIn: false,
                   tags: Array.from(new Set([...spot.tags.filter((tag) => tag !== '可点亮' && tag !== '心愿'), '已点亮'])),
-                  photoIds: spot.photoIds.length ? spot.photoIds : [`photo-${spotId}`],
+                  photoIds: checkInPhotoUri
+                    ? Array.from(new Set([...spot.photoIds, `local-photo-${createdCheckIn!.id}`]))
+                    : spot.photoIds,
                 }
               : spot
           );
@@ -243,9 +259,11 @@ export const useTravelStore = create<TravelStoreState>()(
                   ...trip,
                   spotIds: Array.from(new Set([...trip.spotIds, spotId])),
                   checkInIds: Array.from(new Set([...trip.checkInIds, createdCheckIn!.id])),
-                  photoUrls: Array.from(new Set([...trip.photoUrls, targetSpot.coverUrl || basePhoto])),
-                  photoCount: (trip.photoCount ?? trip.photoUrls.length) + 1,
-                  summary: `${trip.days} 天 · ${trip.cityIds.length} 座城市 · ${Array.from(new Set([...trip.spotIds, spotId])).length} 个景点 · ${(trip.photoCount ?? trip.photoUrls.length) + 1} 张照片`,
+                  photoUrls: checkInPhotoUri ? Array.from(new Set([...trip.photoUrls, checkInPhotoUri])) : trip.photoUrls,
+                  photoCount: checkInPhotoUri ? (trip.photoCount ?? trip.photoUrls.length) + 1 : trip.photoCount ?? trip.photoUrls.length,
+                  summary: `${trip.days} 天 · ${trip.cityIds.length} 座城市 · ${Array.from(new Set([...trip.spotIds, spotId])).length} 个景点 · ${
+                    checkInPhotoUri ? (trip.photoCount ?? trip.photoUrls.length) + 1 : trip.photoCount ?? trip.photoUrls.length
+                  } 张照片`,
                 }
               : trip
           );

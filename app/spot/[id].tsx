@@ -7,11 +7,10 @@ import { theme } from '@/theme/theme';
 
 export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, trips, lightUpSpot } = useTravelStore((state) => ({
+  const { cities, spots, trips } = useTravelStore((state) => ({
     cities: state.cities,
     spots: state.spots,
     trips: state.trips,
-    lightUpSpot: state.lightUpSpot,
   }));
   const spot = spots.find((item) => item.id === id);
 
@@ -42,14 +41,14 @@ export default function SpotDetailScreen() {
         </View>
         <AppText variant="body">{spot.description}</AppText>
         <AppButton
-          label={isLit ? '查看旅行记录' : '立即点亮'}
+          label={isLit ? '查看旅行记录' : '去打卡页点亮'}
           icon={isLit ? <Sparkles size={18} color={theme.colors.mapDarkAlt} /> : <MapPin size={18} color={theme.colors.mapDarkAlt} />}
           onPress={() => {
             if (isLit) {
               router.push(`/trip/${primaryTrip.id}`);
               return;
             }
-            lightUpSpot(spot.id);
+            router.push('/tabs/checkin');
           }}
           fullWidth
         />
