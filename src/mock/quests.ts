@@ -1,0 +1,40 @@
+import { ThemeQuest } from '@/types/quest';
+
+export const quests: ThemeQuest[] = [
+  {
+    id: 'west-lake-ten',
+    title: '西湖十景',
+    subtitle: '4 / 10 已点亮',
+    description: '沿着湖岸和山影收集杭州最经典的十个景致，完成后解锁西湖收集家徽章。',
+    progress: 4,
+    total: 10,
+    coverUrl: 'https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=900&q=80',
+    rewardAchievementId: 'west-lake-collector',
+    spotIds: ['west-lake', 'broken-bridge', 'sudi', 'leifeng-pagoda'],
+    cityIds: ['hangzhou'],
+  },
+  {
+    id: 'five-mountains',
+    title: '中国五岳',
+    subtitle: '0 / 5 已点亮',
+    description: '把五座名山加入长期旅行目标，适合一年一年慢慢完成。',
+    progress: 0,
+    total: 5,
+    coverUrl: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+    rewardAchievementId: 'city-wanderer',
+    spotIds: [],
+    cityIds: ['beijing', 'xian'],
+  },
+  {
+    id: 'jiangnan-towns',
+    title: '江南六大古镇',
+    subtitle: '2 / 6 已点亮',
+    description: '把水巷、石桥和白墙黑瓦串成一条柔和的江南路线。',
+    progress: 2,
+    total: 6,
+    coverUrl: 'https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=900&q=80',
+    rewardAchievementId: 'first-departure',
+    spotIds: [],
+    cityIds: ['hangzhou', 'suzhou', 'nanjing'],
+  },
+];
