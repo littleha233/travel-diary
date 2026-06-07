@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { Map, Minus, Plus } from 'lucide-react-native';
 import { cities as fallbackCities, quests as fallbackQuests, spots as fallbackSpots } from '@/mock';
 import { mockMapProvider } from '@/services/map/mockMapProvider';
-import { MapLayer, MapPoint, MapPointState } from '@/services/map/types';
+import { MapLayer, MapPointState } from '@/services/map/types';
 import { City } from '@/types/city';
 import { ThemeQuest } from '@/types/quest';
 import { Spot } from '@/types/spot';
@@ -56,7 +56,8 @@ export function MapPreview({
   const [activeLayer, setActiveLayer] = useState<MapLayer>(initialLayer ?? (focusCityId ? 'spot' : 'country'));
   const activeCity = cities.find((city) => city.id === defaultFocusCityId) ?? cities[0];
   const dynamicLitCityCount = litCityCount ?? cities.filter((city) => city.lit).length;
-  const dynamicProvinceCount = provinceCount ?? new Set(cities.filter((city) => city.lit).map((city) => city.province)).size;
+  const dynamicProvinceCount =
+    provinceCount ?? new Set(cities.filter((city) => city.lit).map((city) => city.province)).size;
   const visibleLayer = compact ? 'country' : activeLayer;
   const points = useMemo(() => {
     if (visibleLayer === 'spot' && activeCity) {
@@ -154,8 +155,13 @@ export function MapPreview({
       {!compact ? (
         <>
           {visiblePoints.slice(0, 4).map((point) => (
-            <View key={`label-${point.kind}-${point.id}`} style={[styles.label, { left: `${point.x}%`, top: `${point.y + 3}%` }]}>
-              <AppText variant="caption" color={theme.colors.white}>{point.label}</AppText>
+            <View
+              key={`label-${point.kind}-${point.id}`}
+              style={[styles.label, { left: `${point.x}%`, top: `${point.y + 3}%` }]}
+            >
+              <AppText variant="caption" color={theme.colors.white}>
+                {point.label}
+              </AppText>
             </View>
           ))}
           <View style={styles.layerBar}>
@@ -174,13 +180,28 @@ export function MapPreview({
             ))}
           </View>
           <View style={styles.controls}>
-            <Pressable style={styles.controlButton} onPress={() => zoom(1)} accessibilityRole="button" accessibilityLabel="放大地图层级">
+            <Pressable
+              style={styles.controlButton}
+              onPress={() => zoom(1)}
+              accessibilityRole="button"
+              accessibilityLabel="放大地图层级"
+            >
               <Plus size={18} color={theme.colors.white} />
             </Pressable>
-            <Pressable style={styles.controlButton} onPress={() => zoom(-1)} accessibilityRole="button" accessibilityLabel="缩小地图层级">
+            <Pressable
+              style={styles.controlButton}
+              onPress={() => zoom(-1)}
+              accessibilityRole="button"
+              accessibilityLabel="缩小地图层级"
+            >
               <Minus size={18} color={theme.colors.white} />
             </Pressable>
-            <Pressable style={styles.controlButton} onPress={() => setActiveLayer('country')} accessibilityRole="button" accessibilityLabel="回到全国层">
+            <Pressable
+              style={styles.controlButton}
+              onPress={() => setActiveLayer('country')}
+              accessibilityRole="button"
+              accessibilityLabel="回到全国层"
+            >
               <Map size={18} color={theme.colors.white} />
             </Pressable>
           </View>
@@ -188,7 +209,9 @@ export function MapPreview({
             {(Object.keys(stateLabels) as MapPointState[]).map((state) => (
               <View key={state} style={styles.legendItem}>
                 <View style={[styles.legendDot, styles[state]]} />
-                <AppText variant="caption" color={theme.colors.white}>{stateLabels[state]}</AppText>
+                <AppText variant="caption" color={theme.colors.white}>
+                  {stateLabels[state]}
+                </AppText>
               </View>
             ))}
           </View>
@@ -196,21 +219,32 @@ export function MapPreview({
             <View style={styles.panelHeader}>
               <StatusChip label={`${layerLabels[visibleLayer]}层`} tone={visibleLayer === 'spot' ? 'gold' : 'purple'} />
               <AppText variant="caption" color="#C7C4EA">
-                {visibleLayer === 'spot' && activeCity ? `${activeCity.name} · ${visiblePoints.length} 个景点` : `${visiblePoints.length} 个点位`}
+                {visibleLayer === 'spot' && activeCity
+                  ? `${activeCity.name} · ${visiblePoints.length} 个景点`
+                  : `${visiblePoints.length} 个点位`}
               </AppText>
             </View>
             <AppText variant="h3" color={theme.colors.white}>
-              {visibleLayer === 'country' ? '全国城市点位' : visibleLayer === 'city' ? `${activeCity?.name ?? '城市'}周边城市` : `${activeCity?.name ?? '城市'}景点点位`}
+              {visibleLayer === 'country'
+                ? '全国城市点位'
+                : visibleLayer === 'city'
+                  ? `${activeCity?.name ?? '城市'}周边城市`
+                  : `${activeCity?.name ?? '城市'}景点点位`}
             </AppText>
             <AppText variant="caption" color="#C7C4EA">
-              已点亮 {stateCounts.lit} · 心愿 {stateCounts.wishlist} · 主题 {stateCounts['theme-task']} · 未点亮 {stateCounts.unlit}
+              已点亮 {stateCounts.lit} · 心愿 {stateCounts.wishlist} · 主题 {stateCounts['theme-task']} · 未点亮{' '}
+              {stateCounts.unlit}
             </AppText>
             {visibleLayer === 'spot' && nearbySpots.length ? (
               <View style={styles.nearbyList}>
                 {nearbySpots.map(({ spot, distanceLabel }) => (
                   <Pressable key={spot.id} style={styles.nearbyItem} onPress={() => router.push(`/spot/${spot.id}`)}>
-                    <AppText variant="caption" color={theme.colors.white}>{spot.name}</AppText>
-                    <AppText variant="caption" color="#C7C4EA">{distanceLabel}</AppText>
+                    <AppText variant="caption" color={theme.colors.white}>
+                      {spot.name}
+                    </AppText>
+                    <AppText variant="caption" color="#C7C4EA">
+                      {distanceLabel}
+                    </AppText>
                   </Pressable>
                 ))}
               </View>

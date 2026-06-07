@@ -23,8 +23,12 @@ export function AchievementBadge({ achievement }: AchievementBadgeProps) {
       <View style={[styles.badge, { backgroundColor: color }]}>
         <Award size={24} color={theme.colors.mapDarkAlt} />
       </View>
-      <AppText variant="caption" style={styles.title}>{achievement.title}</AppText>
-      <AppText variant="caption" style={styles.desc}>{achievement.unlocked ? '已解锁' : achievement.description}</AppText>
+      <AppText variant="caption" style={styles.title}>
+        {achievement.title}
+      </AppText>
+      <AppText variant="caption" style={styles.desc}>
+        {achievement.unlocked ? '已解锁' : achievement.description}
+      </AppText>
     </View>
   );
 }

@@ -3,7 +3,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { Save, Sparkles } from 'lucide-react-native';
-import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, StatusChip } from '@/components';
+import {
+  AppButton,
+  AppCard,
+  AppText,
+  DetailHeader,
+  ErrorState,
+  PhotoGrid,
+  Screen,
+  SectionHeader,
+  StatusChip,
+} from '@/components';
 import { AIMemoryDraft } from '@/services/types';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
@@ -12,13 +22,15 @@ const styleOptions = ['自然日记', '朋友圈分享', '诗意散文', '轻松
 
 export default function AIMemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { aiMemories, errorMessage, generateAIMemoryDraft, saveAIMemory, trips } = useTravelStore(useShallow((state) => ({
-    aiMemories: state.aiMemories,
-    errorMessage: state.errorMessage,
-    generateAIMemoryDraft: state.generateAIMemoryDraft,
-    saveAIMemory: state.saveAIMemory,
-    trips: state.trips,
-  })));
+  const { aiMemories, errorMessage, generateAIMemoryDraft, saveAIMemory, trips } = useTravelStore(
+    useShallow((state) => ({
+      aiMemories: state.aiMemories,
+      errorMessage: state.errorMessage,
+      generateAIMemoryDraft: state.generateAIMemoryDraft,
+      saveAIMemory: state.saveAIMemory,
+      trips: state.trips,
+    }))
+  );
   const trip = trips.find((item) => item.id === id);
   const memory = aiMemories.find((item) => item.id === id) ?? aiMemories.find((item) => item.tripId === trip?.id);
   const activeTrip = trip ?? trips.find((item) => item.id === memory?.tripId);
@@ -110,7 +122,9 @@ export default function AIMemoryScreen() {
     if (draft) {
       applyDraft(draft);
     } else {
-      setGenerationError(useTravelStore.getState().errorMessage ?? errorMessage ?? 'AI 回忆生成失败，请保留输入后重试。');
+      setGenerationError(
+        useTravelStore.getState().errorMessage ?? errorMessage ?? 'AI 回忆生成失败，请保留输入后重试。'
+      );
     }
 
     setIsGenerating(false);
@@ -138,9 +152,16 @@ export default function AIMemoryScreen() {
     <Screen dark>
       <DetailHeader title="生成 AI 回忆" subtitle="AI Memory · 把旅途整理成故事" dark />
       <AppCard variant="dark" style={styles.card}>
-        <AppText variant="h3" color={theme.colors.white}>{activeTrip?.title ?? '杭州周末探索'}</AppText>
+        <AppText variant="h3" color={theme.colors.white}>
+          {activeTrip?.title ?? '杭州周末探索'}
+        </AppText>
         <View style={styles.chips}>
-          {[`${activeTrip?.spotIds.length ?? 0} 个景点`, `${activeTrip ? activeTrip.photoCount ?? activeTrip.photoUrls.length : photoUrls.length} 张照片`, `${activeTrip?.days ?? 0} 天行程`, memory?.style ?? '自然日记'].map((label, index) => (
+          {[
+            `${activeTrip?.spotIds.length ?? 0} 个景点`,
+            `${activeTrip ? (activeTrip.photoCount ?? activeTrip.photoUrls.length) : photoUrls.length} 张照片`,
+            `${activeTrip?.days ?? 0} 天行程`,
+            memory?.style ?? '自然日记',
+          ].map((label, index) => (
             <StatusChip key={label} label={label} tone={index === 0 ? 'mint' : 'gray'} />
           ))}
         </View>
@@ -148,13 +169,21 @@ export default function AIMemoryScreen() {
       </AppCard>
       <SectionHeader title="生成输入" dark />
       <AppCard variant="dark" style={styles.card}>
-        <AppText variant="h3" color={theme.colors.white}>文案风格</AppText>
+        <AppText variant="h3" color={theme.colors.white}>
+          文案风格
+        </AppText>
         <View style={styles.styleGrid}>
           {styleOptions.map((option) => {
             const selected = option === style;
             return (
-              <Pressable key={option} onPress={() => setStyle(option)} style={[styles.styleOption, selected && styles.styleOptionActive]}>
-                <AppText variant="caption" color={selected ? theme.colors.mapDarkAlt : theme.colors.white}>{option}</AppText>
+              <Pressable
+                key={option}
+                onPress={() => setStyle(option)}
+                style={[styles.styleOption, selected && styles.styleOptionActive]}
+              >
+                <AppText variant="caption" color={selected ? theme.colors.mapDarkAlt : theme.colors.white}>
+                  {option}
+                </AppText>
               </Pressable>
             );
           })}
@@ -172,7 +201,9 @@ export default function AIMemoryScreen() {
       <AppCard variant="dark" style={styles.status}>
         <Sparkles size={30} color={theme.colors.mint} />
         <View>
-          <AppText variant="h3" color={theme.colors.white}>{statusLabel}</AppText>
+          <AppText variant="h3" color={theme.colors.white}>
+            {statusLabel}
+          </AppText>
           <AppText variant="caption" color="#C7C4EA">
             {generationError ?? '前端只提交 tripId、style 和 extraPrompt，由后端代理生成文本。'}
           </AppText>
@@ -183,8 +214,20 @@ export default function AIMemoryScreen() {
         <StatusChip label={safetyFallback ? '安全兜底' : '可编辑草稿'} />
         <Field label="标题" value={title} onChangeText={setTitle} placeholder="生成后可编辑标题" />
         <Field label="正文" value={content} onChangeText={setContent} placeholder="生成后可编辑正文" minHeight={150} />
-        <Field label="旅行总结" value={summary} onChangeText={setSummary} placeholder="生成后可编辑总结" minHeight={80} />
-        <Field label="分享文案" value={shareText} onChangeText={setShareText} placeholder="生成后可编辑分享文案" minHeight={80} />
+        <Field
+          label="旅行总结"
+          value={summary}
+          onChangeText={setSummary}
+          placeholder="生成后可编辑总结"
+          minHeight={80}
+        />
+        <Field
+          label="分享文案"
+          value={shareText}
+          onChangeText={setShareText}
+          placeholder="生成后可编辑分享文案"
+          minHeight={80}
+        />
       </AppCard>
       <View style={styles.actions}>
         <AppButton
@@ -223,7 +266,9 @@ function Field({
 }) {
   return (
     <View style={styles.field}>
-      <AppText variant="caption" color={dark ? '#C7C4EA' : theme.colors.muted}>{label}</AppText>
+      <AppText variant="caption" color={dark ? '#C7C4EA' : theme.colors.muted}>
+        {label}
+      </AppText>
       <TextInput
         value={value}
         onChangeText={onChangeText}

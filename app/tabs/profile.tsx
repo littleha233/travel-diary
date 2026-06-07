@@ -2,20 +2,32 @@ import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { Camera, ChevronRight, Settings } from 'lucide-react-native';
-import { AchievementBadge, AppCard, AppText, ErrorState, LoadingState, MapPreview, Screen, SectionHeader, StatusChip } from '@/components';
+import {
+  AchievementBadge,
+  AppCard,
+  AppText,
+  ErrorState,
+  LoadingState,
+  MapPreview,
+  Screen,
+  SectionHeader,
+  StatusChip,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function ProfileScreen() {
-  const { status, errorMessage, achievements, cities, trips, user, retry } = useTravelStore(useShallow((state) => ({
-    status: state.status,
-    errorMessage: state.errorMessage,
-    achievements: state.achievements,
-    cities: state.cities,
-    trips: state.trips,
-    user: state.user,
-    retry: state.retry,
-  })));
+  const { status, errorMessage, achievements, cities, trips, user, retry } = useTravelStore(
+    useShallow((state) => ({
+      status: state.status,
+      errorMessage: state.errorMessage,
+      achievements: state.achievements,
+      cities: state.cities,
+      trips: state.trips,
+      user: state.user,
+      retry: state.retry,
+    }))
+  );
   const primaryTrip = trips[0];
 
   if (status === 'loading') {
@@ -38,8 +50,12 @@ export default function ProfileScreen() {
     <Screen dark>
       <View style={styles.top}>
         <View>
-          <AppText variant="title" color={theme.colors.white}>Travel Profile</AppText>
-          <AppText variant="caption" color="#C7C4EA">个人旅行档案</AppText>
+          <AppText variant="title" color={theme.colors.white}>
+            Travel Profile
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            个人旅行档案
+          </AppText>
         </View>
         <Pressable onPress={() => router.push('/settings')}>
           <Settings size={24} color={theme.colors.white} />
@@ -48,8 +64,12 @@ export default function ProfileScreen() {
       <AppCard variant="dark" style={styles.profile}>
         <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
         <View style={styles.profileText}>
-          <AppText variant="h2" color={theme.colors.white}>{user.nickname}</AppText>
-          <AppText variant="caption" color="#C7C4EA">{user.level} {user.title} · City Wanderer</AppText>
+          <AppText variant="h2" color={theme.colors.white}>
+            {user.nickname}
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            {user.level} {user.title} · City Wanderer
+          </AppText>
           <StatusChip label="数字旅行护照已同步" tone="gold" />
         </View>
       </AppCard>
@@ -61,13 +81,23 @@ export default function ProfileScreen() {
           [`${user.achievementCount}`, '解锁徽章'],
         ].map(([value, label]) => (
           <AppCard key={label} variant="dark" style={styles.stat}>
-            <AppText variant="h2" color={theme.colors.white}>{value}</AppText>
-            <AppText variant="caption" color="#C7C4EA">{label}</AppText>
+            <AppText variant="h2" color={theme.colors.white}>
+              {value}
+            </AppText>
+            <AppText variant="caption" color="#C7C4EA">
+              {label}
+            </AppText>
           </AppCard>
         ))}
       </View>
       <SectionHeader title="个人地图摘要" action="查看" dark />
-      <MapPreview compact cities={cities} litCityCount={user.litCityCount} provinceCount={user.provinceCount} exploredSpotCount={user.exploredSpotCount} />
+      <MapPreview
+        compact
+        cities={cities}
+        litCityCount={user.litCityCount}
+        provinceCount={user.provinceCount}
+        exploredSpotCount={user.exploredSpotCount}
+      />
       <SectionHeader title="徽章墙" action="全部" dark />
       <View style={styles.badges}>
         {achievements.slice(0, 3).map((achievement) => (
@@ -75,21 +105,43 @@ export default function ProfileScreen() {
         ))}
       </View>
       <View style={styles.entries}>
-        <Entry label="我的旅行" value={primaryTrip?.title ?? '暂无旅行记录'} onPress={() => primaryTrip && router.push(`/trip/${primaryTrip.id}`)} />
-        <Entry label="我的照片" value={`${primaryTrip ? primaryTrip.photoCount ?? primaryTrip.photoUrls.length : 0} 张旅行照片`} icon={<Camera size={20} color={theme.colors.mint} />} />
+        <Entry
+          label="我的旅行"
+          value={primaryTrip?.title ?? '暂无旅行记录'}
+          onPress={() => primaryTrip && router.push(`/trip/${primaryTrip.id}`)}
+        />
+        <Entry
+          label="我的照片"
+          value={`${primaryTrip ? (primaryTrip.photoCount ?? primaryTrip.photoUrls.length) : 0} 张旅行照片`}
+          icon={<Camera size={20} color={theme.colors.mint} />}
+        />
         <Entry label="设置" value="隐私与账号" onPress={() => router.push('/settings')} />
       </View>
     </Screen>
   );
 }
 
-function Entry({ label, value, icon, onPress }: { label: string; value: string; icon?: React.ReactNode; onPress?: () => void }) {
+function Entry({
+  label,
+  value,
+  icon,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+  onPress?: () => void;
+}) {
   return (
     <Pressable style={styles.entry} onPress={onPress}>
       {icon}
       <View style={styles.entryText}>
-        <AppText variant="h3" color={theme.colors.white}>{label}</AppText>
-        <AppText variant="caption" color="#C7C4EA">{value}</AppText>
+        <AppText variant="h3" color={theme.colors.white}>
+          {label}
+        </AppText>
+        <AppText variant="caption" color="#C7C4EA">
+          {value}
+        </AppText>
       </View>
       <ChevronRight size={20} color="#C7C4EA" />
     </Pressable>

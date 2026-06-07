@@ -29,7 +29,12 @@ export function AppButton({ label, variant = 'primary', icon, fullWidth, style, 
   return (
     <Pressable style={[styles.pressable, fullWidth && styles.fullWidth, style]} {...props}>
       {variant === 'primary' ? (
-        <LinearGradient colors={[theme.colors.mint, theme.colors.purple]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primary}>
+        <LinearGradient
+          colors={[theme.colors.mint, theme.colors.purple]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.primary}
+        >
           {content}
         </LinearGradient>
       ) : (

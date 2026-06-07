@@ -5,15 +5,9 @@ import { serviceConfig, TravelDataSource } from '@/services/config';
 import { cloneInitialTravelData, syncDerivedTravelData } from '@/services/mockTravelService';
 import { travelDataService } from '@/services/travelDataService';
 import { AIMemoryDraft, AIMemoryGenerationInput, LightUpSpotOptions, TravelData } from '@/services/types';
-import { Achievement } from '@/types/achievement';
 import { AIMemory } from '@/types/aiMemory';
 import { CheckInRecord } from '@/types/checkIn';
-import { City } from '@/types/city';
 import { TravelPlan } from '@/types/plan';
-import { ThemeQuest } from '@/types/quest';
-import { Spot } from '@/types/spot';
-import { Trip } from '@/types/trip';
-import { TravelUser } from '@/types/user';
 
 type StoreStatus = 'loading' | 'ready' | 'error';
 

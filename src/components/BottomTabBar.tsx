@@ -23,7 +23,7 @@ const labels = {
 type BottomTabBarProps = {
   state: {
     index: number;
-    routes: Array<{ key: string; name: string }>;
+    routes: { key: string; name: string }[];
   };
   navigation: {
     navigate: (name: string) => void;
@@ -47,13 +47,20 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
             style={[styles.item, isCenter && styles.centerItem]}
           >
             {isCenter ? (
-              <LinearGradient colors={[theme.colors.mintLight, theme.colors.mint, theme.colors.purple]} style={styles.activate}>
+              <LinearGradient
+                colors={[theme.colors.mintLight, theme.colors.mint, theme.colors.purple]}
+                style={styles.activate}
+              >
                 <Icon size={30} color={theme.colors.mapDarkAlt} />
               </LinearGradient>
             ) : (
               <Icon size={22} color={focused ? theme.colors.mint : theme.colors.muted} />
             )}
-            <AppText variant="caption" color={focused || isCenter ? theme.colors.mint : theme.colors.muted} style={styles.label}>
+            <AppText
+              variant="caption"
+              color={focused || isCenter ? theme.colors.mint : theme.colors.muted}
+              style={styles.label}
+            >
               {labels[name]}
             </AppText>
           </Pressable>

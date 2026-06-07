@@ -294,4 +294,3 @@ npx expo export --platform web --output-dir dist-test
 当前 TravelAround 前端工程可以判定为 Expo React Native APP。
 
 它不是普通 Web 项目；Web 能运行是因为 Expo 支持 Web 预览。当前页面结构、组件实现和路由方式都符合 Expo + React Native + Expo Router 的移动端工程形态。
-

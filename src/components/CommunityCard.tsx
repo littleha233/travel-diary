@@ -36,19 +36,36 @@ export function CommunityCard({ post }: CommunityCardProps) {
       {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.image} /> : null}
       {post.type === 'achievement' || post.type === 'quest' ? (
         <View style={styles.iconPanel}>
-          {post.type === 'achievement' ? <Trophy size={34} color={theme.colors.gold} /> : <Sparkles size={34} color={theme.colors.mint} />}
+          {post.type === 'achievement' ? (
+            <Trophy size={34} color={theme.colors.gold} />
+          ) : (
+            <Sparkles size={34} color={theme.colors.mint} />
+          )}
         </View>
       ) : null}
       <View style={styles.body}>
         <StatusChip
-          label={post.type === 'route' ? '路线地图卡' : post.type === 'ai-memory' ? 'AI 游记' : post.type === 'quest' ? '主题任务' : '成就分享'}
+          label={
+            post.type === 'route'
+              ? '路线地图卡'
+              : post.type === 'ai-memory'
+                ? 'AI 游记'
+                : post.type === 'quest'
+                  ? '主题任务'
+                  : '成就分享'
+          }
           tone={post.type === 'achievement' ? 'gold' : 'mint'}
         />
         <AppText variant="h3">{post.title}</AppText>
         <AppText variant="caption">{post.subtitle}</AppText>
         {typeof post.progress === 'number' ? <ProgressBar value={post.progress} /> : null}
         {post.actionLabel ? (
-          <AppButton label={post.actionLabel} variant="secondary" icon={<Route size={15} color={theme.colors.text} />} onPress={openPost} />
+          <AppButton
+            label={post.actionLabel}
+            variant="secondary"
+            icon={<Route size={15} color={theme.colors.text} />}
+            onPress={openPost}
+          />
         ) : null}
       </View>
     </Pressable>

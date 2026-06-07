@@ -1,20 +1,33 @@
 import { Heart, MapPinned } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AppButton, AppCard, AppText, EmptyState, ErrorState, LoadingState, PlanCard, Screen, SectionHeader, StatusChip, ThemeQuestCard } from '@/components';
+import {
+  AppButton,
+  AppCard,
+  AppText,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  PlanCard,
+  Screen,
+  SectionHeader,
+  ThemeQuestCard,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function PlanScreen() {
-  const { status, errorMessage, cities, plans, quests, createWeekendPlan, retry } = useTravelStore(useShallow((state) => ({
-    status: state.status,
-    errorMessage: state.errorMessage,
-    cities: state.cities,
-    plans: state.plans,
-    quests: state.quests,
-    createWeekendPlan: state.createWeekendPlan,
-    retry: state.retry,
-  })));
+  const { status, errorMessage, cities, plans, quests, createWeekendPlan, retry } = useTravelStore(
+    useShallow((state) => ({
+      status: state.status,
+      errorMessage: state.errorMessage,
+      cities: state.cities,
+      plans: state.plans,
+      quests: state.quests,
+      createWeekendPlan: state.createWeekendPlan,
+      retry: state.retry,
+    }))
+  );
   const plan = plans[0];
   const wishlist = plan ? cities.filter((city) => plan.wishlistCityIds.includes(city.id)) : [];
 
@@ -38,18 +51,35 @@ export default function PlanScreen() {
     <Screen dark>
       <View style={styles.top}>
         <View>
-          <AppText variant="title" color={theme.colors.white}>旅行计划</AppText>
-          <AppText variant="caption" color="#C7C4EA">Next Mission · 规划下一次点亮</AppText>
+          <AppText variant="title" color={theme.colors.white}>
+            旅行计划
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            Next Mission · 规划下一次点亮
+          </AppText>
         </View>
         <AppButton label="＋ 新计划" variant="secondary" onPress={createWeekendPlan} />
       </View>
-      {plan ? <PlanCard plan={plan} /> : <EmptyState title="还没有旅行计划" message="创建一个周末探索计划，先把想去的地点收起来。" action="创建计划" onAction={createWeekendPlan} />}
+      {plan ? (
+        <PlanCard plan={plan} />
+      ) : (
+        <EmptyState
+          title="还没有旅行计划"
+          message="创建一个周末探索计划，先把想去的地点收起来。"
+          action="创建计划"
+          onAction={createWeekendPlan}
+        />
+      )}
       <SectionHeader title="心愿地图" action="管理" dark />
       <AppCard variant="dark" style={styles.wishlist}>
         <MapPinned size={26} color={theme.colors.mint} />
         <View style={styles.wishlistText}>
-          <AppText variant="h3" color={theme.colors.white}>Wishlist Map</AppText>
-          <AppText variant="caption" color="#C7C4EA">{wishlist.map((city) => city.name).join(' · ')} · 中国五岳</AppText>
+          <AppText variant="h3" color={theme.colors.white}>
+            Wishlist Map
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            {wishlist.map((city) => city.name).join(' · ')} · 中国五岳
+          </AppText>
         </View>
         <Heart size={22} color={theme.colors.gold} />
       </AppCard>

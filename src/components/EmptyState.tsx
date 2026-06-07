@@ -16,7 +16,9 @@ export function EmptyState({ title, message, action, onAction }: EmptyStateProps
     <View style={styles.state}>
       <Map size={34} color={theme.colors.purple} />
       <AppText variant="h3">{title}</AppText>
-      <AppText variant="body" style={styles.message}>{message}</AppText>
+      <AppText variant="body" style={styles.message}>
+        {message}
+      </AppText>
       {action ? <AppButton label={action} variant="secondary" onPress={onAction} /> : null}
     </View>
   );

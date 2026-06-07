@@ -28,7 +28,17 @@ export class ApiClientError extends Error {
   status: number;
   details?: unknown;
 
-  constructor({ code, message, status, details }: { code: string; message: string; status: number; details?: unknown }) {
+  constructor({
+    code,
+    message,
+    status,
+    details,
+  }: {
+    code: string;
+    message: string;
+    status: number;
+    details?: unknown;
+  }) {
     super(message);
     this.name = 'ApiClientError';
     this.code = code;
@@ -79,7 +89,10 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
     throw new ApiClientError({
       code: error instanceof DOMException && error.name === 'AbortError' ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR',
-      message: error instanceof DOMException && error.name === 'AbortError' ? '请求超时，请稍后重试。' : '网络请求失败，请检查连接后重试。',
+      message:
+        error instanceof DOMException && error.name === 'AbortError'
+          ? '请求超时，请稍后重试。'
+          : '网络请求失败，请检查连接后重试。',
       status: 0,
       details: error,
     });
@@ -90,5 +103,6 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
 export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: 'GET' }),
-  post: <T>(path: string, body?: unknown, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: 'POST', body }),
+  post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
+    apiRequest<T>(path, { ...options, method: 'POST', body }),
 };

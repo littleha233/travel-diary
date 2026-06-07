@@ -16,11 +16,16 @@ export function SpotCard({ spot, onLightUp }: SpotCardProps) {
   const isLit = spot.status === 'lit';
 
   return (
-    <Pressable style={[styles.card, spot.canCheckIn && !isLit ? styles.glow : null]} onPress={() => router.push(`/spot/${spot.id}`)}>
+    <Pressable
+      style={[styles.card, spot.canCheckIn && !isLit ? styles.glow : null]}
+      onPress={() => router.push(`/spot/${spot.id}`)}
+    >
       <Image source={{ uri: spot.coverUrl }} style={styles.image} />
       <View style={styles.body}>
         <AppText variant="h3">{spot.name}</AppText>
-        <AppText variant="caption">{spot.distance} · {spot.tags.join(' / ')}</AppText>
+        <AppText variant="caption">
+          {spot.distance} · {spot.tags.join(' / ')}
+        </AppText>
         <StatusChip label={isLit ? '已点亮' : spot.canCheckIn ? 'GPS 可点亮' : '心愿'} tone={isLit ? 'gray' : 'mint'} />
       </View>
       {onLightUp && !isLit ? (

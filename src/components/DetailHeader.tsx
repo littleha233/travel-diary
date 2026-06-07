@@ -17,8 +17,14 @@ export function DetailHeader({ title, subtitle, dark }: DetailHeaderProps) {
         <ChevronLeft size={22} color={dark ? theme.colors.white : theme.colors.text} />
       </Pressable>
       <View style={styles.text}>
-        <AppText variant="h2" color={dark ? theme.colors.white : theme.colors.text}>{title}</AppText>
-        {subtitle ? <AppText variant="caption" color={dark ? '#C7C4EA' : theme.colors.muted}>{subtitle}</AppText> : null}
+        <AppText variant="h2" color={dark ? theme.colors.white : theme.colors.text}>
+          {title}
+        </AppText>
+        {subtitle ? (
+          <AppText variant="caption" color={dark ? '#C7C4EA' : theme.colors.muted}>
+            {subtitle}
+          </AppText>
+        ) : null}
       </View>
     </View>
   );

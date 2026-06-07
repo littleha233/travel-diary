@@ -6,15 +6,17 @@ import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function HomeScreen() {
-  const { status, errorMessage, cities, spots, quests, user, retry } = useTravelStore(useShallow((state) => ({
-    status: state.status,
-    errorMessage: state.errorMessage,
-    cities: state.cities,
-    spots: state.spots,
-    quests: state.quests,
-    user: state.user,
-    retry: state.retry,
-  })));
+  const { status, errorMessage, cities, spots, quests, user, retry } = useTravelStore(
+    useShallow((state) => ({
+      status: state.status,
+      errorMessage: state.errorMessage,
+      cities: state.cities,
+      spots: state.spots,
+      quests: state.quests,
+      user: state.user,
+      retry: state.retry,
+    }))
+  );
 
   if (status === 'loading') {
     return (
@@ -37,8 +39,12 @@ export default function HomeScreen() {
       <View style={styles.content}>
         <View style={styles.top}>
           <View>
-            <AppText variant="title" color={theme.colors.white}>Travel Map</AppText>
-            <AppText variant="caption" color="#C7C4EA">像开放世界一样点亮真实旅行地图</AppText>
+            <AppText variant="title" color={theme.colors.white}>
+              Travel Map
+            </AppText>
+            <AppText variant="caption" color="#C7C4EA">
+              像开放世界一样点亮真实旅行地图
+            </AppText>
           </View>
           <View style={styles.icons}>
             <LocateFixed size={22} color={theme.colors.white} />

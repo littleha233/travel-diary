@@ -60,7 +60,9 @@ function getCityQuestIds(city: City, quests: ThemeQuest[]) {
 }
 
 function getSpotQuestIds(spot: Spot, quests: ThemeQuest[]) {
-  return quests.filter((quest) => quest.spotIds.includes(spot.id) || spot.questIds.includes(quest.id)).map((quest) => quest.id);
+  return quests
+    .filter((quest) => quest.spotIds.includes(spot.id) || spot.questIds.includes(quest.id))
+    .map((quest) => quest.id);
 }
 
 function getCityState(city: City, quests: ThemeQuest[]): MapPointState {
@@ -115,7 +117,14 @@ function spotToPoint(spot: Spot, quests: ThemeQuest[], position: { x: number; y:
     id: spot.id,
     kind: 'spot',
     label: spot.name,
-    subtitle: spot.status === 'lit' ? '已点亮景点' : spot.status === 'wishlist' ? '心愿景点' : relatedQuestIds.length ? '主题任务景点' : '未点亮景点',
+    subtitle:
+      spot.status === 'lit'
+        ? '已点亮景点'
+        : spot.status === 'wishlist'
+          ? '心愿景点'
+          : relatedQuestIds.length
+            ? '主题任务景点'
+            : '未点亮景点',
     state: getSpotState(spot, quests),
     coordinates: spot.coordinates,
     x: position.x,

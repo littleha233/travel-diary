@@ -208,3 +208,31 @@ Real SDK notes:
 - AMap / Gaode and Tencent Maps are stronger first candidates for mainland China usage because of domestic map data and POI coverage.
 - Mapbox remains a good customization candidate for international scenarios, but China availability and compliance need review.
 - Adapter details are documented in `docs/MAP_PROVIDER.md`.
+
+## Phase 8 Testing And Build
+
+Phase 8 establishes the baseline quality and internal build workflow.
+
+Quality scripts:
+
+```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm test
+npm run check
+```
+
+Current automated coverage:
+
+- Core business state tests for check-in, city state, and theme quest progress.
+- Real API retry test for AI memory draft generation.
+- Data source switching test for mock / API mode.
+- Component tests for status chips and map rendering.
+- Page tests for permission-denied manual check-in and AI generation retry.
+
+Build and release docs:
+
+- Test plan: `TEST_PLAN.md`
+- EAS / internal release guide: `BUILD_AND_RELEASE.md`
+- EAS profiles: `eas.json`
