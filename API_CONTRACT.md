@@ -168,6 +168,10 @@ Matches current `City`; adds derived user stats for detail pages.
   "lit": true,
   "wished": false,
   "visitedAt": "2026-05-03",
+  "coordinates": {
+    "latitude": 30.2741,
+    "longitude": 120.1551
+  },
   "mapX": 62,
   "mapY": 63,
   "coverUrl": "https://cdn.travelaround.app/cities/hangzhou.jpg",
@@ -506,6 +510,10 @@ Response `200`:
       "lit": true,
       "wished": false,
       "visitedAt": "2026-05-03",
+      "coordinates": {
+        "latitude": 30.2741,
+        "longitude": 120.1551
+      },
       "mapX": 62,
       "mapY": 63,
       "coverUrl": "https://cdn.travelaround.app/cities/hangzhou.jpg",

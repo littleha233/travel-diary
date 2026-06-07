@@ -1,7 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AppCard, AppText, DetailHeader, ErrorState, Screen, SectionHeader, SpotCard, StatusChip, ThemeQuestCard } from '@/components';
+import { AppCard, AppText, DetailHeader, ErrorState, MapPreview, Screen, SectionHeader, SpotCard, StatusChip, ThemeQuestCard } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
@@ -49,6 +49,17 @@ export default function CityDetailScreen() {
           <Stat value={`${cityPhotoCount}`} label="照片" />
         </View>
       </AppCard>
+      <SectionHeader title="城市点位地图" />
+      <MapPreview
+        cities={cities}
+        spots={spots}
+        quests={quests}
+        focusCityId={city.id}
+        initialLayer="spot"
+        litCityCount={cities.filter((item) => item.lit).length}
+        provinceCount={new Set(cities.filter((item) => item.lit).map((item) => item.province)).size}
+        exploredSpotCount={spots.filter((item) => item.status === 'lit').length}
+      />
       <SectionHeader title="景点列表" action="全部" />
       <View style={styles.list}>
         {citySpots.map((spot) => (

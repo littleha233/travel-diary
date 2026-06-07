@@ -177,3 +177,34 @@ Failure behavior:
 - Generation failures keep `style` and `extraPrompt` on screen so the user can retry.
 - Mock generation returns a safe fallback draft when unsafe text appears in mood or extra prompt.
 - Empty or malformed backend draft fields are normalized into editable fallback text.
+
+## Phase 7 Map And POI MVP
+
+Phase 7 enhances the custom TravelAround map without integrating a real map SDK.
+
+Implemented map capabilities:
+
+- Mock city data includes latitude/longitude coordinates.
+- Mock spot data is projected from existing latitude/longitude coordinates.
+- `MapProvider` abstraction lives in `src/services/map`.
+- `mockMapProvider` converts cities and spots into renderable `MapPoint` objects.
+- Point states include `lit`, `unlit`, `wishlist`, and `theme-task`.
+- Map layers support nationwide -> city -> spot views.
+- City point taps navigate to `/city/{cityId}`.
+- Spot point taps navigate to `/spot/{spotId}`.
+- Nearby POIs are calculated locally with Haversine distance.
+- Existing persisted mock city data is backfilled with coordinates during store sync.
+
+Current mock map implementation:
+
+- Home map starts on the nationwide city layer.
+- Plus / minus controls move between nationwide, city, and spot layers.
+- City detail shows the focused city's spot layer.
+- The spot layer shows nearest spots and supports direct spot navigation.
+
+Real SDK notes:
+
+- No Gaode, Tencent Maps, Mapbox, or other SDK is integrated in Phase 7.
+- AMap / Gaode and Tencent Maps are stronger first candidates for mainland China usage because of domestic map data and POI coverage.
+- Mapbox remains a good customization candidate for international scenarios, but China availability and compliance need review.
+- Adapter details are documented in `docs/MAP_PROVIDER.md`.

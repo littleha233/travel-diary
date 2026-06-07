@@ -1,3 +1,5 @@
+import { GeoPoint } from './spot';
+
 export type City = {
   id: string;
   name: string;
@@ -5,6 +7,7 @@ export type City = {
   lit: boolean;
   wished?: boolean;
   visitedAt?: string;
+  coordinates: GeoPoint;
   mapX: number;
   mapY: number;
   coverUrl: string;

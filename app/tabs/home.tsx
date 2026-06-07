@@ -6,10 +6,12 @@ import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function HomeScreen() {
-  const { status, errorMessage, cities, user, retry } = useTravelStore(useShallow((state) => ({
+  const { status, errorMessage, cities, spots, quests, user, retry } = useTravelStore(useShallow((state) => ({
     status: state.status,
     errorMessage: state.errorMessage,
     cities: state.cities,
+    spots: state.spots,
+    quests: state.quests,
     user: state.user,
     retry: state.retry,
   })));
@@ -45,6 +47,8 @@ export default function HomeScreen() {
         </View>
         <MapPreview
           cities={cities}
+          spots={spots}
+          quests={quests}
           litCityCount={user.litCityCount}
           provinceCount={user.provinceCount}
           exploredSpotCount={user.exploredSpotCount}

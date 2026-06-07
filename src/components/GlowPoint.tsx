@@ -1,21 +1,44 @@
 import { Pressable, StyleSheet, View } from 'react-native';
+import { MapPointState } from '@/services/map/types';
 import { theme } from '@/theme/theme';
 
 type GlowPointProps = {
   x: number;
   y: number;
-  tone?: 'mint' | 'blue' | 'gold' | 'gray';
+  tone?: 'mint' | 'blue' | 'gold' | 'gray' | 'purple';
+  state?: MapPointState;
+  label?: string;
   onPress?: () => void;
 };
 
-export function GlowPoint({ x, y, tone = 'mint', onPress }: GlowPointProps) {
+function getToneFromState(state?: MapPointState): GlowPointProps['tone'] {
+  if (state === 'lit') {
+    return 'mint';
+  }
+  if (state === 'wishlist') {
+    return 'gold';
+  }
+  if (state === 'theme-task') {
+    return 'purple';
+  }
+  if (state === 'unlit') {
+    return 'gray';
+  }
+
+  return undefined;
+}
+
+export function GlowPoint({ x, y, tone, state, label, onPress }: GlowPointProps) {
+  const resolvedTone = tone ?? getToneFromState(state) ?? 'mint';
+
   return (
     <Pressable
       onPress={onPress}
       style={[styles.wrap, { left: `${x}%`, top: `${y}%` }]}
       accessibilityRole="button"
+      accessibilityLabel={label}
     >
-      <View style={[styles.glow, styles[tone]]}>
+      <View style={[styles.glow, styles[resolvedTone]]}>
         <View style={styles.core} />
       </View>
     </Pressable>
@@ -62,6 +85,12 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.gold,
     shadowColor: theme.colors.gold,
     shadowOpacity: 0.7,
+    shadowRadius: 18,
+  },
+  purple: {
+    backgroundColor: theme.colors.purple,
+    shadowColor: theme.colors.purple,
+    shadowOpacity: 0.72,
     shadowRadius: 18,
   },
   gray: {
