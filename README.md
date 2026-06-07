@@ -1,6 +1,6 @@
 # TravelAround
 
-TravelAround v0.1 is an Expo + React Native + TypeScript static frontend prototype for a travel check-in and travel map app.
+TravelAround v0.1 is an Expo + React Native + TypeScript frontend prototype for a travel check-in and travel map app.
 
 ## Tech Stack
 
@@ -9,7 +9,7 @@ TravelAround v0.1 is an Expo + React Native + TypeScript static frontend prototy
 - TypeScript
 - Expo Router
 - StyleSheet
-- Local mock data
+- Local mock data / switchable API service layer
 
 ## Getting Started
 
@@ -41,7 +41,7 @@ npm run typecheck
 
 ## Prototype Scope
 
-This phase uses mock data only. It does not connect to a real backend, real map SDK, real login, real image upload, or real AI generation.
+The app can run on local mock data or a backend API contract. It does not connect to a real map SDK, real login, or real image upload yet.
 
 Implemented screens include:
 
@@ -135,7 +135,8 @@ Connected API contract endpoints:
 - `GET /trips/{tripId}`
 - `GET /achievements`
 - `POST /check-ins`
-- `POST /trips/{tripId}/ai-memories`
+- `POST /ai-memories/generate`
+- `POST /ai-memories`
 
 Not connected yet:
 
@@ -148,3 +149,31 @@ Not connected yet:
 - `POST /trips`
 - `GET /ai-memories/{memoryId}`
 - Travel plan APIs are not in the Phase 4 contract yet, so plans remain local in API mode.
+
+## Phase 6 AI Memory Generation
+
+Phase 6 implements a text-only AI memory MVP with an editable draft flow.
+
+Frontend flow:
+
+- Trip detail opens `/ai-memory/{tripOrMemoryId}`.
+- The AI Memory screen collects `tripId`, `style`, and `extraPrompt`.
+- `useTravelStore.generateAIMemoryDraft` calls the active travel data service.
+- Mock mode generates a local draft from trip city, dates, spots, mood text, photo count, and user notes.
+- API mode calls backend proxy endpoint `POST /ai-memories/generate`.
+- The user edits `title`, `content`, `summary`, and `shareText`.
+- `useTravelStore.saveAIMemory` saves the edited draft as an AI Memory.
+
+Security and backend boundary:
+
+- The frontend never stores or calls with an AI provider API key.
+- Prompt ownership belongs to the backend AI proxy.
+- The backend should keep provider credentials in server-side environment variables.
+- The backend prompt template is documented in `docs/AI_MEMORY_PROMPT_TEMPLATE.md`.
+
+Failure behavior:
+
+- API generation retries transient network, timeout, rate limit, and 5xx failures.
+- Generation failures keep `style` and `extraPrompt` on screen so the user can retry.
+- Mock generation returns a safe fallback draft when unsafe text appears in mood or extra prompt.
+- Empty or malformed backend draft fields are normalized into editable fallback text.
