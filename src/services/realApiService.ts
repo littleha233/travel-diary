@@ -6,9 +6,9 @@ import { ThemeQuest } from '@/types/quest';
 import { Spot } from '@/types/spot';
 import { Trip } from '@/types/trip';
 import { TravelUser } from '@/types/user';
-import { apiClient } from './apiClient';
+import { ApiClientError, apiClient } from './apiClient';
 import { cloneInitialTravelData, mockTravelService, syncDerivedTravelData } from './mockTravelService';
-import { CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
+import { AIMemoryDraft, AIMemoryGenerationInput, CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
 
 type AchievementsResponse = {
   achievements: Achievement[];
@@ -23,6 +23,15 @@ type TripDetailResponse = {
 
 type CheckInResponse = {
   checkIn?: CheckInRecord;
+};
+
+type SaveAIMemoryRequest = {
+  tripId: string;
+  title: string;
+  content: string;
+  summary: string;
+  shareText: string;
+  style: string;
 };
 
 function toQuery(params: Record<string, string | number | boolean | undefined>) {
@@ -99,14 +108,66 @@ async function createCheckIn(spotId: string, options: LightUpSpotOptions, curren
   };
 }
 
-async function generateAIMemory(tripId: string): Promise<{ memory?: AIMemory; data: TravelData }> {
-  const memory = await apiClient.post<AIMemory>(`/trips/${tripId}/ai-memories`, {
-    style: '自然日记',
-    forceRegenerate: false,
-    source: {
-      includeMoodText: true,
-    },
-  });
+function isTransientApiError(error: unknown) {
+  return error instanceof ApiClientError && (error.status === 0 || error.status === 429 || error.status >= 500);
+}
+
+async function withGenerationRetry<T>(request: () => Promise<T>, retries = 2): Promise<T> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      lastError = error;
+      if (!isTransientApiError(error) || attempt === retries) {
+        break;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+function normalizeDraft(input: AIMemoryGenerationInput, draft: AIMemoryDraft, current: TravelData): AIMemoryDraft {
+  const trip = current.trips.find((item) => item.id === input.tripId);
+
+  return {
+    tripId: draft.tripId || input.tripId,
+    title: draft.title?.trim() || '这趟旅行的回忆',
+    content: draft.content?.trim() || '这趟旅行已经整理成回忆草稿，你可以继续编辑后保存。',
+    summary: draft.summary?.trim() || `${trip?.days ?? 0} 天旅行回忆。`,
+    shareText: draft.shareText?.trim() || `${trip?.title ?? '旅行'} 已生成一段新的回忆。`,
+    style: draft.style?.trim() || input.style,
+    photoUrls: draft.photoUrls ?? trip?.photoUrls ?? [],
+    spotIds: draft.spotIds ?? trip?.spotIds ?? [],
+    generatedAt: draft.generatedAt ?? new Date().toISOString(),
+    safetyFallback: draft.safetyFallback,
+  };
+}
+
+async function generateAIMemoryDraft(input: AIMemoryGenerationInput, current: TravelData): Promise<AIMemoryDraft> {
+  const draft = await withGenerationRetry(() =>
+    apiClient.post<AIMemoryDraft>('/ai-memories/generate', {
+      tripId: input.tripId,
+      style: input.style,
+      extraPrompt: input.extraPrompt,
+    })
+  );
+
+  return normalizeDraft(input, draft, current);
+}
+
+async function saveAIMemory(draft: AIMemoryDraft): Promise<{ memory: AIMemory; data: TravelData }> {
+  const request: SaveAIMemoryRequest = {
+    tripId: draft.tripId,
+    title: draft.title,
+    content: draft.content,
+    summary: draft.summary,
+    shareText: draft.shareText,
+    style: draft.style,
+  };
+  const memory = await apiClient.post<AIMemory>('/ai-memories', request);
   const data = await loadInitialData();
 
   return {
@@ -119,5 +180,6 @@ export const realApiService: TravelDataService = {
   loadInitialData,
   createCheckIn,
   createWeekendPlan: async (current) => mockTravelService.createWeekendPlan(current),
-  generateAIMemory,
+  generateAIMemoryDraft,
+  saveAIMemory,
 };

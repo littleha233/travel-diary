@@ -1,20 +1,61 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { Sparkles } from 'lucide-react-native';
+import { Save, Sparkles } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, StatusChip } from '@/components';
+import { AIMemoryDraft } from '@/services/types';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
+const styleOptions = ['自然日记', '朋友圈分享', '诗意散文', '轻松幽默'];
+
 export default function AIMemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { aiMemories, generateAIMemory, trips } = useTravelStore(useShallow((state) => ({
+  const { aiMemories, errorMessage, generateAIMemoryDraft, saveAIMemory, trips } = useTravelStore(useShallow((state) => ({
     aiMemories: state.aiMemories,
-    generateAIMemory: state.generateAIMemory,
+    errorMessage: state.errorMessage,
+    generateAIMemoryDraft: state.generateAIMemoryDraft,
+    saveAIMemory: state.saveAIMemory,
     trips: state.trips,
   })));
   const trip = trips.find((item) => item.id === id);
   const memory = aiMemories.find((item) => item.id === id) ?? aiMemories.find((item) => item.tripId === trip?.id);
+  const activeTrip = trip ?? trips.find((item) => item.id === memory?.tripId);
+  const photoUrls = memory?.photoUrls ?? activeTrip?.photoUrls ?? [];
+  const [style, setStyle] = useState(memory?.style ?? '自然日记');
+  const [extraPrompt, setExtraPrompt] = useState('');
+  const [title, setTitle] = useState(memory?.title ?? '');
+  const [content, setContent] = useState(memory?.content ?? '');
+  const [summary, setSummary] = useState(memory?.summary ?? '');
+  const [shareText, setShareText] = useState(memory?.shareText ?? '');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [generationError, setGenerationError] = useState<string>();
+  const [safetyFallback, setSafetyFallback] = useState(false);
+
+  useEffect(() => {
+    setStyle(memory?.style ?? '自然日记');
+    setTitle(memory?.title ?? '');
+    setContent(memory?.content ?? '');
+    setSummary(memory?.summary ?? '');
+    setShareText(memory?.shareText ?? '');
+    setSafetyFallback(false);
+  }, [memory?.content, memory?.id, memory?.shareText, memory?.style, memory?.summary, memory?.title]);
+
+  const canSave = Boolean(activeTrip && title.trim() && content.trim() && summary.trim() && shareText.trim());
+  const statusLabel = useMemo(() => {
+    if (isGenerating) {
+      return '后端代理生成中';
+    }
+    if (generationError) {
+      return '生成失败，可重试';
+    }
+    if (title.trim()) {
+      return safetyFallback ? '已生成安全兜底草稿' : '已生成可编辑草稿';
+    }
+    return '等待生成';
+  }, [generationError, isGenerating, safetyFallback, title]);
 
   if (!memory && !trip) {
     return (
@@ -25,8 +66,73 @@ export default function AIMemoryScreen() {
     );
   }
 
-  const activeTrip = trip ?? trips.find((item) => item.id === memory?.tripId);
-  const photoUrls = memory?.photoUrls ?? activeTrip?.photoUrls ?? [];
+  const applyDraft = (draft: AIMemoryDraft) => {
+    setTitle(draft.title);
+    setContent(draft.content);
+    setSummary(draft.summary);
+    setShareText(draft.shareText);
+    setStyle(draft.style);
+    setSafetyFallback(Boolean(draft.safetyFallback));
+  };
+
+  const buildDraftFromForm = (): AIMemoryDraft | undefined => {
+    if (!activeTrip) {
+      return undefined;
+    }
+
+    return {
+      tripId: activeTrip.id,
+      title: title.trim(),
+      content: content.trim(),
+      summary: summary.trim(),
+      shareText: shareText.trim(),
+      style,
+      photoUrls: activeTrip.photoUrls,
+      spotIds: activeTrip.spotIds,
+      generatedAt: memory?.generatedAt ?? new Date().toISOString(),
+    };
+  };
+
+  const handleGenerate = async () => {
+    if (!activeTrip || isGenerating) {
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenerationError(undefined);
+
+    const draft = await generateAIMemoryDraft({
+      tripId: activeTrip.id,
+      style,
+      extraPrompt,
+    });
+
+    if (draft) {
+      applyDraft(draft);
+    } else {
+      setGenerationError(useTravelStore.getState().errorMessage ?? errorMessage ?? 'AI 回忆生成失败，请保留输入后重试。');
+    }
+
+    setIsGenerating(false);
+  };
+
+  const handleSave = async () => {
+    const draft = buildDraftFromForm();
+    if (!draft || !canSave || isSaving) {
+      return;
+    }
+
+    setIsSaving(true);
+    setGenerationError(undefined);
+    const nextMemory = await saveAIMemory(draft);
+    setIsSaving(false);
+
+    if (nextMemory) {
+      router.replace(`/ai-memory/${nextMemory.id}`);
+    } else {
+      setGenerationError(useTravelStore.getState().errorMessage ?? 'AI 回忆保存失败，请稍后重试。');
+    }
+  };
 
   return (
     <Screen dark>
@@ -40,38 +146,100 @@ export default function AIMemoryScreen() {
         </View>
         <PhotoGrid photos={photoUrls.slice(0, 3)} />
       </AppCard>
+      <SectionHeader title="生成输入" dark />
+      <AppCard variant="dark" style={styles.card}>
+        <AppText variant="h3" color={theme.colors.white}>文案风格</AppText>
+        <View style={styles.styleGrid}>
+          {styleOptions.map((option) => {
+            const selected = option === style;
+            return (
+              <Pressable key={option} onPress={() => setStyle(option)} style={[styles.styleOption, selected && styles.styleOptionActive]}>
+                <AppText variant="caption" color={selected ? theme.colors.mapDarkAlt : theme.colors.white}>{option}</AppText>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Field
+          label="补充描述"
+          value={extraPrompt}
+          onChangeText={setExtraPrompt}
+          placeholder="比如：想突出断桥边的风、和朋友散步的轻松感。"
+          dark
+          minHeight={88}
+        />
+      </AppCard>
       <SectionHeader title="生成状态" dark />
       <AppCard variant="dark" style={styles.status}>
         <Sparkles size={30} color={theme.colors.mint} />
         <View>
-          <AppText variant="h3" color={theme.colors.white}>{memory ? '已整理地点、照片和心情' : '等待生成本地 mock 回忆'}</AppText>
-          <AppText variant="caption" color="#C7C4EA">{memory ? 'mock AI 已生成一段旅行回忆' : '点击下方按钮后，会基于当前旅行记录生成假日记'}</AppText>
+          <AppText variant="h3" color={theme.colors.white}>{statusLabel}</AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            {generationError ?? '前端只提交 tripId、style 和 extraPrompt，由后端代理生成文本。'}
+          </AppText>
         </View>
       </AppCard>
-      <SectionHeader title="生成结果" action="重新生成" dark />
+      <SectionHeader title="生成结果" dark />
       <AppCard style={styles.paper}>
-        <StatusChip label="玻璃纸张" />
-        <AppText variant="h2">{memory?.title ?? '尚未生成'}</AppText>
-        <AppText variant="body">{memory?.content ?? '点击“生成 mock AI 回忆”，TravelAround 会基于本地旅行记录、打卡景点和照片数量生成一篇假日记。'}</AppText>
-        <AppText variant="caption">{memory?.summary ?? '本阶段不接真实 AI。'}</AppText>
+        <StatusChip label={safetyFallback ? '安全兜底' : '可编辑草稿'} />
+        <Field label="标题" value={title} onChangeText={setTitle} placeholder="生成后可编辑标题" />
+        <Field label="正文" value={content} onChangeText={setContent} placeholder="生成后可编辑正文" minHeight={150} />
+        <Field label="旅行总结" value={summary} onChangeText={setSummary} placeholder="生成后可编辑总结" minHeight={80} />
+        <Field label="分享文案" value={shareText} onChangeText={setShareText} placeholder="生成后可编辑分享文案" minHeight={80} />
       </AppCard>
       <View style={styles.actions}>
         <AppButton
-          label={memory ? '重新生成 mock AI 回忆' : '生成 mock AI 回忆'}
+          label={title ? '重新生成' : '生成 AI 回忆'}
           fullWidth
-          onPress={async () => {
-            if (!activeTrip) {
-              return;
-            }
-            const nextMemory = await generateAIMemory(activeTrip.id);
-            if (nextMemory) {
-              router.replace(`/ai-memory/${nextMemory.id}`);
-            }
-          }}
+          disabled={isGenerating || isSaving}
+          onPress={handleGenerate}
         />
-        <AppButton label="分享" variant="secondary" fullWidth />
+        <AppButton
+          label={isSaving ? '保存中' : '保存为 AI Memory'}
+          variant="secondary"
+          icon={<Save size={16} color={theme.colors.text} />}
+          fullWidth
+          disabled={!canSave || isGenerating || isSaving}
+          onPress={handleSave}
+        />
       </View>
     </Screen>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  dark = false,
+  minHeight = 52,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder: string;
+  dark?: boolean;
+  minHeight?: number;
+}) {
+  return (
+    <View style={styles.field}>
+      <AppText variant="caption" color={dark ? '#C7C4EA' : theme.colors.muted}>{label}</AppText>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={dark ? 'rgba(255,255,255,0.44)' : theme.colors.muted}
+        multiline
+        textAlignVertical="top"
+        style={[
+          styles.input,
+          dark && styles.inputDark,
+          {
+            minHeight,
+          },
+        ]}
+      />
+    </View>
   );
 }
 
@@ -89,8 +257,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: theme.spacing.md,
   },
+  styleGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  styleOption: {
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  styleOptionActive: {
+    backgroundColor: theme.colors.mint,
+    borderColor: theme.colors.mint,
+  },
   paper: {
     gap: theme.spacing.md,
+  },
+  field: {
+    gap: theme.spacing.sm,
+  },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.md,
+    borderWidth: 1,
+    color: theme.colors.text,
+    fontSize: 15,
+    fontWeight: '600',
+    lineHeight: 22,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+  },
+  inputDark: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: 'rgba(255,255,255,0.16)',
+    color: theme.colors.white,
   },
   actions: {
     gap: theme.spacing.md,

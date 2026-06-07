@@ -34,9 +34,29 @@ export type CheckInMutationResult = {
   data: TravelData;
 };
 
+export type AIMemoryGenerationInput = {
+  tripId: string;
+  style: string;
+  extraPrompt: string;
+};
+
+export type AIMemoryDraft = {
+  tripId: string;
+  title: string;
+  content: string;
+  summary: string;
+  shareText: string;
+  style: string;
+  photoUrls: string[];
+  spotIds: string[];
+  generatedAt?: string;
+  safetyFallback?: boolean;
+};
+
 export type TravelDataService = {
   loadInitialData: () => Promise<TravelData>;
   createCheckIn: (spotId: string, options: LightUpSpotOptions, current: TravelData) => Promise<CheckInMutationResult>;
   createWeekendPlan: (current: TravelData) => Promise<{ plan: TravelPlan; data: TravelData }>;
-  generateAIMemory: (tripId: string, current: TravelData) => Promise<{ memory?: AIMemory; data: TravelData }>;
+  generateAIMemoryDraft: (input: AIMemoryGenerationInput, current: TravelData) => Promise<AIMemoryDraft>;
+  saveAIMemory: (draft: AIMemoryDraft, current: TravelData) => Promise<{ memory: AIMemory; data: TravelData }>;
 };

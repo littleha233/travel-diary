@@ -13,7 +13,7 @@ import { CheckInRecord } from '@/types/checkIn';
 import { TravelPlan } from '@/types/plan';
 import { ThemeQuest } from '@/types/quest';
 import { TravelUser } from '@/types/user';
-import { CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
+import { AIMemoryDraft, AIMemoryGenerationInput, CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
 
 const defaultTripId = 'hangzhou-3-days';
 
@@ -244,32 +244,109 @@ function createLocalWeekendPlan(current: TravelData) {
   };
 }
 
-function generateLocalAIMemory(current: TravelData, tripId: string) {
+const unsafePromptPatterns = [
+  /仇恨|歧视|暴力|自残|色情|违法/,
+  /hate|violent|self-harm|sexual|illegal/i,
+];
+
+function hasUnsafePrompt(input: string) {
+  return unsafePromptPatterns.some((pattern) => pattern.test(input));
+}
+
+function getTripContext(current: TravelData, tripId: string) {
   const trip = current.trips.find((item) => item.id === tripId);
   if (!trip) {
     throw new Error('没有找到可生成回忆的旅行记录');
   }
 
   const tripSpots = current.spots.filter((spot) => trip.spotIds.includes(spot.id));
-  const generatedAt = new Date().toISOString();
-  const title = `把 ${tripSpots[0]?.name ?? '旅途'} 走成一段回忆`;
-  const spotNames = tripSpots.map((spot) => spot.name).join('、');
-  const content = `这次 ${trip.title} 一共 ${trip.days} 天，地图上又亮起了 ${tripSpots.length} 个地点：${spotNames}。最清晰的是刚刚点亮的新节点，它让这趟旅程不再只是计划里的名字，而是变成了旅行记录里真实的一步。照片、地点和心情被整理成这段 mock AI 回忆，等待下一次出发继续延伸。`;
+  const tripCities = current.cities.filter((city) => trip.cityIds.includes(city.id));
+  const tripCheckIns = current.checkIns.filter((checkIn) => checkIn.tripId === trip.id);
 
-  const memory: AIMemory = {
-    id: `memory-${tripId}-${Date.now()}`,
-    tripId,
-    title,
-    summary: `${trip.days} 天，${trip.cityIds.length} 座城市，${tripSpots.length} 个景点，${trip.photoCount ?? trip.photoUrls.length} 张照片。`,
-    content,
-    style: '自然日记',
+  return {
+    trip,
+    tripCities,
+    tripSpots,
+    tripCheckIns,
+  };
+}
+
+function generateFallbackDraft(input: AIMemoryGenerationInput, current: TravelData): AIMemoryDraft {
+  const { trip, tripCities, tripSpots } = getTripContext(current, input.tripId);
+  const generatedAt = new Date().toISOString();
+
+  return {
+    tripId: trip.id,
+    title: `${tripCities[0]?.name ?? '这趟旅行'}的安静片段`,
+    summary: `${trip.days} 天，${tripCities.length} 座城市，${tripSpots.length} 个景点，${trip.photoCount ?? trip.photoUrls.length} 张照片。`,
+    content:
+      '这趟旅行的记录已经整理完成。为了保持内容安全和稳定，系统先生成了一版克制的旅行回忆：它保留城市、日期、景点和照片数量，把重点放在真实行程本身。你可以继续编辑这段文字，再保存为自己的 AI 回忆。',
+    shareText: `${trip.title} 已整理成一段旅行回忆，记录 ${tripSpots.length} 个被点亮的地点。`,
+    style: input.style,
+    photoUrls: trip.photoUrls,
+    spotIds: trip.spotIds,
+    generatedAt,
+    safetyFallback: true,
+  };
+}
+
+function generateLocalAIMemoryDraft(input: AIMemoryGenerationInput, current: TravelData): AIMemoryDraft {
+  const { trip, tripCities, tripSpots, tripCheckIns } = getTripContext(current, input.tripId);
+  const unsafeSource = `${input.extraPrompt} ${tripCheckIns.map((checkIn) => checkIn.moodText).join(' ')}`;
+
+  if (hasUnsafePrompt(unsafeSource)) {
+    return generateFallbackDraft(input, current);
+  }
+
+  const generatedAt = new Date().toISOString();
+  const cityNames = tripCities.map((city) => city.name).join('、') || '这座城市';
+  const spotNames = tripSpots.map((spot) => spot.name).join('、') || '沿途地点';
+  const moodTexts = tripCheckIns
+    .map((checkIn) => checkIn.moodText)
+    .filter(Boolean)
+    .slice(-3)
+    .join(' / ');
+  const userNote = input.extraPrompt.trim();
+  const photoCount = trip.photoCount ?? trip.photoUrls.length;
+  const styleTone = input.style || '自然日记';
+  const noteSentence = userNote ? `你补充的线索是：“${userNote}”。` : '没有额外补充，于是这版文字更像一篇自然日记。';
+  const moodSentence = moodTexts ? `当时留下的心情包括：${moodTexts}。` : '这趟旅行没有太多刻意记录的心情，但地点本身已经留下了足够清晰的轮廓。';
+
+  return {
+    tripId: trip.id,
+    title: `在${cityNames}，把时间走成故事`,
+    summary: `${trip.startDate} 到 ${trip.endDate}，${trip.days} 天，${tripCities.length} 座城市，${tripSpots.length} 个景点，${photoCount} 张照片。`,
+    content: `这次${trip.title}从 ${trip.startDate} 走到 ${trip.endDate}，地图上亮起了 ${spotNames}。${moodSentence}${noteSentence}照片没有参与识别，但 ${photoCount} 张照片的数量像一串坐标，提醒这趟路不是空泛的计划，而是真实抵达过的现场。用“${styleTone}”的方式回看，它更像一段慢慢展开的城市笔记：先是出发，后来是停留，最后把景点、心情和日期收束成一段可以分享的回忆。`,
+    shareText: `${trip.title}：${trip.days} 天点亮 ${tripSpots.length} 个地点，用${styleTone}写下一段旅行回忆。`,
+    style: styleTone,
     photoUrls: trip.photoUrls,
     spotIds: trip.spotIds,
     generatedAt,
   };
+}
 
-  const aiMemories = [...current.aiMemories, memory];
-  const trips = current.trips.map((item) => (item.id === tripId ? { ...item, aiMemoryId: memory.id } : item));
+function saveLocalAIMemory(current: TravelData, draft: AIMemoryDraft) {
+  const trip = current.trips.find((item) => item.id === draft.tripId);
+  if (!trip) {
+    throw new Error('没有找到可保存回忆的旅行记录');
+  }
+
+  const memory: AIMemory = {
+    id: `memory-${draft.tripId}-${Date.now()}`,
+    tripId: draft.tripId,
+    title: draft.title,
+    summary: draft.summary,
+    content: draft.content,
+    shareText: draft.shareText,
+    style: draft.style,
+    photoUrls: draft.photoUrls,
+    spotIds: draft.spotIds,
+    status: 'completed',
+    generatedAt: draft.generatedAt ?? new Date().toISOString(),
+  };
+
+  const aiMemories = [...current.aiMemories.filter((item) => item.id !== memory.id), memory];
+  const trips = current.trips.map((item) => (item.id === draft.tripId ? { ...item, aiMemoryId: memory.id } : item));
 
   return {
     memory,
@@ -285,5 +362,6 @@ export const mockTravelService: TravelDataService = {
   loadInitialData: async () => syncDerivedTravelData(cloneInitialTravelData()),
   createCheckIn: async (spotId, options, current) => createLocalCheckIn(current, spotId, options),
   createWeekendPlan: async (current) => createLocalWeekendPlan(current),
-  generateAIMemory: async (tripId, current) => generateLocalAIMemory(current, tripId),
+  generateAIMemoryDraft: async (input, current) => generateLocalAIMemoryDraft(input, current),
+  saveAIMemory: async (draft, current) => saveLocalAIMemory(current, draft),
 };

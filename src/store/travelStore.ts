@@ -4,7 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { serviceConfig, TravelDataSource } from '@/services/config';
 import { cloneInitialTravelData, syncDerivedTravelData } from '@/services/mockTravelService';
 import { travelDataService } from '@/services/travelDataService';
-import { LightUpSpotOptions, TravelData } from '@/services/types';
+import { AIMemoryDraft, AIMemoryGenerationInput, LightUpSpotOptions, TravelData } from '@/services/types';
 import { Achievement } from '@/types/achievement';
 import { AIMemory } from '@/types/aiMemory';
 import { CheckInRecord } from '@/types/checkIn';
@@ -27,7 +27,8 @@ type TravelStoreState = TravelData & {
   setError: (message: string) => void;
   lightUpSpot: (spotId: string, options?: LightUpSpotOptions) => Promise<CheckInRecord | undefined>;
   createWeekendPlan: () => Promise<TravelPlan | undefined>;
-  generateAIMemory: (tripId: string) => Promise<AIMemory | undefined>;
+  generateAIMemoryDraft: (input: AIMemoryGenerationInput) => Promise<AIMemoryDraft | undefined>;
+  saveAIMemory: (draft: AIMemoryDraft) => Promise<AIMemory | undefined>;
   resetLocalProgress: () => Promise<void>;
 };
 
@@ -129,11 +130,22 @@ export const useTravelStore = create<TravelStoreState>()(
           return undefined;
         }
       },
-      generateAIMemory: async (tripId) => {
+      generateAIMemoryDraft: async (input) => {
+        try {
+          return await travelDataService.generateAIMemoryDraft(input, pickTravelData(get()));
+        } catch (error) {
+          set({
+            status: 'ready',
+            errorMessage: getErrorMessage(error),
+          });
+          return undefined;
+        }
+      },
+      saveAIMemory: async (draft) => {
         set({ status: 'loading', errorMessage: undefined });
 
         try {
-          const result = await travelDataService.generateAIMemory(tripId, pickTravelData(get()));
+          const result = await travelDataService.saveAIMemory(draft, pickTravelData(get()));
           set({
             ...result.data,
             status: 'ready',
@@ -143,7 +155,7 @@ export const useTravelStore = create<TravelStoreState>()(
           return result.memory;
         } catch (error) {
           set({
-            status: 'error',
+            status: 'ready',
             errorMessage: getErrorMessage(error),
           });
           return undefined;

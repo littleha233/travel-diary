@@ -308,6 +308,7 @@ Matches current `AIMemory`.
   "title": "在杭州，把时间走慢",
   "summary": "3 天，1 座城市，7 个景点，36 张照片。",
   "content": "清晨的西湖像一张安静的地图...",
+  "shareText": "杭州 3 日游：把西湖、断桥和茶香写进一段慢下来的旅行回忆。",
   "style": "自然日记",
   "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
   "spotIds": ["west-lake", "broken-bridge"],
@@ -1230,43 +1231,48 @@ Pagination:
 
 Not needed for MVP. If a trip has many photos later, add `/trips/{tripId}/photos`.
 
-### 6.14 Generate AI Memory
+### 6.14 Generate AI Memory Draft
 
-Starts or immediately completes AI memory generation. MVP can return completed content synchronously; production can return `queued` and poll by memory ID.
+Generates an editable text-only AI memory draft through the backend AI proxy. The frontend must never call OpenAI or hold an AI API key. MVP returns completed draft content synchronously; production can later return `queued` and poll by a generation job ID.
 
 ```http
-POST /trips/{tripId}/ai-memories
+POST /ai-memories/generate
 ```
 
 Request:
 
 ```json
 {
+  "tripId": "hangzhou-3-days",
   "style": "自然日记",
-  "forceRegenerate": false,
-  "source": {
-    "includeSpotIds": ["west-lake", "broken-bridge"],
-    "includePhotoIds": ["img_01JZ8F3M9TVT4"],
-    "includeMoodText": true
-  }
+  "extraPrompt": "想突出断桥边的风，和朋友散步的轻松感。"
 }
 ```
 
-Response `201`:
+Backend generation context:
+
+- Load the trip by `tripId`.
+- Load related cities, check-ins, spots, mood text, date range, and photo count.
+- Build the AI prompt from the backend-owned prompt template.
+- Do not perform image understanding in Phase 6.
+- Retry transient AI provider failures server-side.
+- If content safety blocks the prompt or output, return a safe fallback draft with `safetyFallback: true`.
+
+Response `200`:
 
 ```json
 {
   "data": {
-    "id": "memory-trip_01JZ8F3M9TVT4",
     "tripId": "hangzhou-3-days",
     "title": "把西湖走成一段回忆",
-    "summary": "3 天，1 座城市，4 个景点，36 张照片。",
     "content": "这次杭州旅行一共 3 天，地图上又亮起了西湖、断桥残雪...",
+    "summary": "3 天，1 座城市，4 个景点，36 张照片。",
+    "shareText": "杭州 3 日游：把西湖、断桥残雪和茶香写成一段慢下来的旅行回忆。",
     "style": "自然日记",
     "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
     "spotIds": ["west-lake", "broken-bridge"],
-    "status": "completed",
-    "generatedAt": "2026-06-06T14:00:00.000Z"
+    "generatedAt": "2026-06-06T14:00:00.000Z",
+    "safetyFallback": false
   },
   "meta": {
     "requestId": "req_01",
@@ -1288,7 +1294,60 @@ Pagination:
 
 Not needed.
 
-### 6.15 Get AI Memory
+### 6.15 Save AI Memory
+
+Saves the edited draft as an AI Memory. The frontend can regenerate multiple drafts before calling this endpoint.
+
+```http
+POST /ai-memories
+```
+
+Request:
+
+```json
+{
+  "tripId": "hangzhou-3-days",
+  "title": "把西湖走成一段回忆",
+  "content": "这次杭州旅行一共 3 天，地图上又亮起了西湖、断桥残雪...",
+  "summary": "3 天，1 座城市，4 个景点，36 张照片。",
+  "shareText": "杭州 3 日游：把西湖、断桥残雪和茶香写成一段慢下来的旅行回忆。",
+  "style": "自然日记"
+}
+```
+
+Response `201`:
+
+```json
+{
+  "data": {
+    "id": "memory-trip_01JZ8F3M9TVT4",
+    "tripId": "hangzhou-3-days",
+    "title": "把西湖走成一段回忆",
+    "summary": "3 天，1 座城市，4 个景点，36 张照片。",
+    "content": "这次杭州旅行一共 3 天，地图上又亮起了西湖、断桥残雪...",
+    "shareText": "杭州 3 日游：把西湖、断桥残雪和茶香写成一段慢下来的旅行回忆。",
+    "style": "自然日记",
+    "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
+    "spotIds": ["west-lake", "broken-bridge"],
+    "status": "completed",
+    "generatedAt": "2026-06-06T14:00:00.000Z"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-06T14:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `TRIP_NOT_FOUND`
+- `FORBIDDEN`
+- `VALIDATION_ERROR`
+- `AI_MEMORY_NOT_READY`
+
+### 6.16 Get AI Memory
 
 ```http
 GET /ai-memories/{memoryId}
@@ -1304,6 +1363,7 @@ Response `200`:
     "title": "在杭州，把时间走慢",
     "summary": "3 天，1 座城市，7 个景点，36 张照片。",
     "content": "清晨的西湖像一张安静的地图...",
+    "shareText": "杭州 3 日游：把西湖、断桥和茶香写进一段慢下来的旅行回忆。",
     "style": "自然日记",
     "photoUrls": ["https://cdn.travelaround.app/images/img_01.jpg"],
     "spotIds": ["west-lake", "broken-bridge"],
@@ -1423,7 +1483,7 @@ Suggested Spring Boot package/module boundaries:
 - Check-in service: `/check-ins`, check-in validation, derived lit state.
 - Trip service: `/trips`.
 - Image service: `/images/upload-url`, `/images/{imageId}/confirm`.
-- AI memory service: `/trips/{tripId}/ai-memories`, `/ai-memories/{memoryId}`.
+- AI memory service: `/ai-memories/generate`, `/ai-memories`, `/ai-memories/{memoryId}`.
 - Achievement service: `/achievements`, quest progress recalculation.
 
 For Phase 5 implementation, start with user, place, check-in, and trip persistence before adding real image storage or a real AI provider.
