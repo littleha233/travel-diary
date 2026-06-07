@@ -20,7 +20,7 @@ const defaultTripId = 'hangzhou-3-days';
 export function cloneInitialTravelData(): TravelData {
   return {
     user: { ...initialUser },
-    cities: initialCities.map((city) => ({ ...city, spotIds: [...city.spotIds], tags: [...city.tags] })),
+    cities: initialCities.map((city) => ({ ...city, coordinates: { ...city.coordinates }, spotIds: [...city.spotIds], tags: [...city.tags] })),
     spots: initialSpots.map((spot) => ({
       ...spot,
       coordinates: { ...spot.coordinates },
@@ -58,13 +58,21 @@ export function cloneInitialTravelData(): TravelData {
 }
 
 export function syncDerivedTravelData(state: TravelData): TravelData {
+  const normalizedCities = state.cities.map((city) => {
+    const fallbackCity = initialCities.find((item) => item.id === city.id);
+
+    return {
+      ...city,
+      coordinates: city.coordinates ?? fallbackCity?.coordinates ?? { latitude: 30.5928, longitude: 114.3055 },
+    };
+  });
   const normalizedTrips = state.trips.map((trip) => ({
     ...trip,
     photoCount: trip.photoCount ?? trip.photoUrls.length,
   }));
   const litSpotIds = new Set(state.spots.filter((spot) => spot.status === 'lit').map((spot) => spot.id));
-  const litCityIds = new Set(state.cities.filter((city) => city.lit).map((city) => city.id));
-  const provinceCount = new Set(state.cities.filter((city) => city.lit).map((city) => city.province)).size;
+  const litCityIds = new Set(normalizedCities.filter((city) => city.lit).map((city) => city.id));
+  const provinceCount = new Set(normalizedCities.filter((city) => city.lit).map((city) => city.province)).size;
 
   const quests = state.quests.map((quest) => {
     if (!quest.spotIds.length) {
@@ -89,7 +97,7 @@ export function syncDerivedTravelData(state: TravelData): TravelData {
     };
   });
 
-  const achievements = state.achievements.map((achievement) => updateAchievement(achievement, state.cities, state.spots, quests));
+  const achievements = state.achievements.map((achievement) => updateAchievement(achievement, normalizedCities, state.spots, quests));
 
   const user: TravelUser = {
     ...state.user,
@@ -103,6 +111,7 @@ export function syncDerivedTravelData(state: TravelData): TravelData {
 
   return {
     ...state,
+    cities: normalizedCities,
     user,
     trips: normalizedTrips,
     plans,
