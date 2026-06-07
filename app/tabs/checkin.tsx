@@ -4,8 +4,30 @@ import { useShallow } from 'zustand/react/shallow';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import { Check, CircleAlert, ImagePlus, LocateFixed, MapPin, Navigation, PencilLine, RotateCcw, Sparkles, X } from 'lucide-react-native';
-import { AppButton, AppCard, AppText, EmptyState, ErrorState, LoadingState, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
+import {
+  Check,
+  CircleAlert,
+  ImagePlus,
+  LocateFixed,
+  MapPin,
+  Navigation,
+  PencilLine,
+  RotateCcw,
+  Sparkles,
+  X,
+} from 'lucide-react-native';
+import {
+  AppButton,
+  AppCard,
+  AppText,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Screen,
+  SectionHeader,
+  SpotCard,
+  StatusChip,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { GeoPoint, Spot } from '@/types/spot';
 import { formatDistance, getDistanceMeters } from '@/utils/geo';
@@ -83,18 +105,23 @@ function createLocatedSpots(spots: Spot[], currentLocation: GeoPoint | null): Lo
         isWithinRadius: computedDistanceMeters <= spot.radius,
       };
     })
-    .sort((a, b) => (a.computedDistanceMeters ?? Number.MAX_SAFE_INTEGER) - (b.computedDistanceMeters ?? Number.MAX_SAFE_INTEGER));
+    .sort(
+      (a, b) =>
+        (a.computedDistanceMeters ?? Number.MAX_SAFE_INTEGER) - (b.computedDistanceMeters ?? Number.MAX_SAFE_INTEGER)
+    );
 }
 
 export default function CheckInScreen() {
-  const { status, errorMessage, cities, spots, lightUpSpot, retry } = useTravelStore(useShallow((state) => ({
-    status: state.status,
-    errorMessage: state.errorMessage,
-    cities: state.cities,
-    spots: state.spots,
-    lightUpSpot: state.lightUpSpot,
-    retry: state.retry,
-  })));
+  const { status, errorMessage, cities, spots, lightUpSpot, retry } = useTravelStore(
+    useShallow((state) => ({
+      status: state.status,
+      errorMessage: state.errorMessage,
+      cities: state.cities,
+      spots: state.spots,
+      lightUpSpot: state.lightUpSpot,
+      retry: state.retry,
+    }))
+  );
   const [currentLocation, setCurrentLocation] = useState<GeoPoint | null>(null);
   const [locationStatus, setLocationStatus] = useState<CapabilityStatus>('idle');
   const [locationMessage, setLocationMessage] = useState('点击定位后，TravelAround 会请求一次前台定位权限。');
@@ -133,7 +160,11 @@ export default function CheckInScreen() {
       const permission = await Location.requestForegroundPermissionsAsync();
       if (!permission.granted) {
         setLocationStatus('denied');
-        setLocationMessage(permission.canAskAgain ? '定位权限已拒绝，可以再次尝试或手动补卡。' : '定位权限已被系统限制，请到设置中开启；现在仍可手动补卡。');
+        setLocationMessage(
+          permission.canAskAgain
+            ? '定位权限已拒绝，可以再次尝试或手动补卡。'
+            : '定位权限已被系统限制，请到设置中开启；现在仍可手动补卡。'
+        );
         return;
       }
 
@@ -183,12 +214,20 @@ export default function CheckInScreen() {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(false);
       if (!permission.granted) {
         setPhotoStatus('denied');
-        setPhotoMessage(permission.canAskAgain ? '相册权限已拒绝，本次可以不选照片继续打卡。' : '相册权限已被系统限制，请到设置中开启；本次可纯文字打卡。');
+        setPhotoMessage(
+          permission.canAskAgain
+            ? '相册权限已拒绝，本次可以不选照片继续打卡。'
+            : '相册权限已被系统限制，请到设置中开启；本次可纯文字打卡。'
+        );
         return;
       }
 
       setPhotoStatus(permission.accessPrivileges === 'limited' ? 'limited' : 'granted');
-      setPhotoMessage(permission.accessPrivileges === 'limited' ? '当前只能访问部分照片，仍可选择已授权的图片。' : '相册权限已允许，可以选择一张旅行照片。');
+      setPhotoMessage(
+        permission.accessPrivileges === 'limited'
+          ? '当前只能访问部分照片，仍可选择已授权的图片。'
+          : '相册权限已允许，可以选择一张旅行照片。'
+      );
 
       const result = await ImagePicker.launchImageLibraryAsync({
         allowsEditing: false,
@@ -208,7 +247,11 @@ export default function CheckInScreen() {
         cachedUri,
         fileName: asset.fileName ?? undefined,
       });
-      setPhotoMessage(cachedUri && cachedUri !== asset.uri ? '照片已缓存到本地沙盒，打卡时会记录缓存路径。' : '照片已选择，可预览或移除。');
+      setPhotoMessage(
+        cachedUri && cachedUri !== asset.uri
+          ? '照片已缓存到本地沙盒，打卡时会记录缓存路径。'
+          : '照片已选择，可预览或移除。'
+      );
     } catch (error) {
       setPhotoStatus('failed');
       setPhotoMessage(error instanceof Error ? error.message : '相册打开失败，本次可以继续纯文字打卡。');
@@ -258,11 +301,19 @@ export default function CheckInScreen() {
     <Screen dark>
       <View style={styles.top}>
         <View>
-          <AppText variant="title" color={theme.colors.white}>附近探索点</AppText>
-          <AppText variant="caption" color="#C7C4EA">定位、照片和手动补卡都只保存在本地</AppText>
+          <AppText variant="title" color={theme.colors.white}>
+            附近探索点
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            定位、照片和手动补卡都只保存在本地
+          </AppText>
         </View>
         <Pressable style={styles.iconButton} onPress={requestLocation} disabled={locationStatus === 'requesting'}>
-          {locationStatus === 'requesting' ? <RotateCcw size={22} color={theme.colors.mintLight} /> : <LocateFixed size={22} color={theme.colors.mintLight} />}
+          {locationStatus === 'requesting' ? (
+            <RotateCcw size={22} color={theme.colors.mintLight} />
+          ) : (
+            <LocateFixed size={22} color={theme.colors.mintLight} />
+          )}
         </Pressable>
       </View>
 
@@ -273,7 +324,9 @@ export default function CheckInScreen() {
         <AppText variant="h3" color={theme.colors.white}>
           {locationStatus === 'requesting' ? '正在扫描附近可点亮地点' : '扫描附近可点亮地点'}
         </AppText>
-        <AppText variant="caption" color="#C7C4EA" style={styles.center}>{scanLabel}</AppText>
+        <AppText variant="caption" color="#C7C4EA" style={styles.center}>
+          {scanLabel}
+        </AppText>
         <AppButton
           label={locationStatus === 'granted' ? '重新定位' : '开始定位'}
           icon={<Navigation size={17} color={theme.colors.mapDarkAlt} />}
@@ -301,13 +354,19 @@ export default function CheckInScreen() {
             <CircleAlert size={18} color={theme.colors.gold} />
           ) : null}
         </View>
-        <AppText variant="body" color="#D8D4F4">{locationMessage}</AppText>
+        <AppText variant="body" color="#D8D4F4">
+          {locationMessage}
+        </AppText>
       </AppCard>
 
       <AppCard variant="dark" style={styles.cityCard}>
         <View>
-          <AppText variant="h3" color={theme.colors.white}>当前城市识别：{nearestCity?.name ?? '未识别'}</AppText>
-          <AppText variant="caption" color="#C7C4EA">{currentLocation ? '基于最近 mock 景点推断' : '定位后会按距离重新识别'}</AppText>
+          <AppText variant="h3" color={theme.colors.white}>
+            当前城市识别：{nearestCity?.name ?? '未识别'}
+          </AppText>
+          <AppText variant="caption" color="#C7C4EA">
+            {currentLocation ? '基于最近 mock 景点推断' : '定位后会按距离重新识别'}
+          </AppText>
         </View>
         <StatusChip label={currentLocation ? '已扫描' : '待定位'} tone={currentLocation ? 'mint' : 'gray'} />
       </AppCard>
@@ -320,7 +379,12 @@ export default function CheckInScreen() {
           {nearbySpots.map((spot) => (
             <SpotCard
               key={spot.id}
-              spot={{ ...spot, distance: spot.computedDistanceLabel, canCheckIn: true, status: spot.status === 'wishlist' ? 'available' : spot.status }}
+              spot={{
+                ...spot,
+                distance: spot.computedDistanceLabel,
+                canCheckIn: true,
+                status: spot.status === 'wishlist' ? 'available' : spot.status,
+              }}
               onLightUp={() => openCheckInModal(spot)}
             />
           ))}
@@ -328,7 +392,11 @@ export default function CheckInScreen() {
       ) : (
         <EmptyState
           title={currentLocation ? '附近暂无可点亮地点' : '还没有定位扫描'}
-          message={currentLocation ? '当前位置没有落入 mock 景点半径，仍然可以手动补卡。' : '点击定位后会计算你和 mock 景点的距离；也可以直接手动补卡。'}
+          message={
+            currentLocation
+              ? '当前位置没有落入 mock 景点半径，仍然可以手动补卡。'
+              : '点击定位后会计算你和 mock 景点的距离；也可以直接手动补卡。'
+          }
           action={currentLocation ? '重新定位' : '开始定位'}
           onAction={requestLocation}
         />
@@ -339,7 +407,9 @@ export default function CheckInScreen() {
         {manualSpots.map((spot) => (
           <AppCard key={spot.id} variant="dark" style={styles.manualRow}>
             <View style={styles.manualInfo}>
-              <AppText variant="h3" color={theme.colors.white}>{spot.name}</AppText>
+              <AppText variant="h3" color={theme.colors.white}>
+                {spot.name}
+              </AppText>
               <AppText variant="caption" color="#C7C4EA">
                 {spot.computedDistanceLabel} · {spot.tags.join(' / ')}
               </AppText>
@@ -385,13 +455,21 @@ export default function CheckInScreen() {
                   <AppText variant="h3">打卡照片</AppText>
                   <AppText variant="caption">{photoMessage}</AppText>
                 </View>
-                <StatusChip label={photoStatus === 'denied' ? '已跳过' : selectedPhoto ? '已选择' : '可选'} tone={selectedPhoto ? 'mint' : 'gray'} />
+                <StatusChip
+                  label={photoStatus === 'denied' ? '已跳过' : selectedPhoto ? '已选择' : '可选'}
+                  tone={selectedPhoto ? 'mint' : 'gray'}
+                />
               </View>
               {selectedPhoto ? (
-                <Pressable onPress={() => setPreviewPhotoUri(selectedPhoto.cachedUri ?? selectedPhoto.uri)} style={styles.photoPreview}>
+                <Pressable
+                  onPress={() => setPreviewPhotoUri(selectedPhoto.cachedUri ?? selectedPhoto.uri)}
+                  style={styles.photoPreview}
+                >
                   <Image source={{ uri: selectedPhoto.cachedUri ?? selectedPhoto.uri }} style={styles.photoImage} />
                   <View style={styles.photoActions}>
-                    <AppText variant="caption" color={theme.colors.white}>点击预览</AppText>
+                    <AppText variant="caption" color={theme.colors.white}>
+                      点击预览
+                    </AppText>
                     <Pressable onPress={() => setSelectedPhoto(null)} style={styles.removePhoto}>
                       <X size={16} color={theme.colors.white} />
                     </Pressable>
@@ -424,7 +502,9 @@ export default function CheckInScreen() {
           <Pressable onPress={() => setPreviewPhotoUri(null)} style={styles.previewClose}>
             <X size={22} color={theme.colors.white} />
           </Pressable>
-          {previewPhotoUri ? <Image source={{ uri: previewPhotoUri }} style={styles.previewImage} resizeMode="contain" /> : null}
+          {previewPhotoUri ? (
+            <Image source={{ uri: previewPhotoUri }} style={styles.previewImage} resizeMode="contain" />
+          ) : null}
         </View>
       </Modal>
 
@@ -434,7 +514,9 @@ export default function CheckInScreen() {
             <View style={styles.successNode}>
               <Check size={48} color={theme.colors.mapDarkAlt} />
             </View>
-            <AppText variant="title" color={theme.colors.white} style={styles.center}>点亮成功</AppText>
+            <AppText variant="title" color={theme.colors.white} style={styles.center}>
+              点亮成功
+            </AppText>
             <AppText variant="body" color="#D8D4F4" style={styles.center}>
               你点亮了 {nearestCity?.name ?? '旅行地图'} · {successSpot?.name}，记录已保存在本地。
             </AppText>

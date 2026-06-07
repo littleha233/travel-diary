@@ -1,18 +1,31 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AppCard, AppText, DetailHeader, ErrorState, MapPreview, Screen, SectionHeader, SpotCard, StatusChip, ThemeQuestCard } from '@/components';
+import {
+  AppCard,
+  AppText,
+  DetailHeader,
+  ErrorState,
+  MapPreview,
+  Screen,
+  SectionHeader,
+  SpotCard,
+  StatusChip,
+  ThemeQuestCard,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function CityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, quests, trips } = useTravelStore(useShallow((state) => ({
-    cities: state.cities,
-    spots: state.spots,
-    quests: state.quests,
-    trips: state.trips,
-  })));
+  const { cities, spots, quests, trips } = useTravelStore(
+    useShallow((state) => ({
+      cities: state.cities,
+      spots: state.spots,
+      quests: state.quests,
+      trips: state.trips,
+    }))
+  );
   const city = cities.find((item) => item.id === id);
 
   if (!city) {

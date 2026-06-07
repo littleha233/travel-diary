@@ -4,14 +4,10 @@
     "strict": true,
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
+    "types": ["jest", "node"],
     "paths": {
-      "@/*": [
-        "src/*"
-      ]
+      "@/*": ["src/*"]
     }
   },
-  "include": [
-    "app",
-    "src"
-  ]
+  "include": ["app", "src"]
 }

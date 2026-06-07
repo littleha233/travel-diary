@@ -15,7 +15,9 @@ export function ThemeQuestCard({ quest }: ThemeQuestCardProps) {
   return (
     <Pressable style={styles.card} onPress={() => router.push(`/quest/${quest.id}`)}>
       <View style={styles.ring}>
-        <AppText variant="caption" color={theme.colors.white}>{quest.progress}/{quest.total}</AppText>
+        <AppText variant="caption" color={theme.colors.white}>
+          {quest.progress}/{quest.total}
+        </AppText>
       </View>
       <View style={styles.body}>
         <AppText variant="h3">{quest.title}</AppText>

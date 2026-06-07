@@ -6,10 +6,12 @@ import { theme } from '@/theme/theme';
 import { getProgressPercent } from '@/utils/travelStats';
 
 export default function AchievementsScreen() {
-  const { achievements, quests } = useTravelStore(useShallow((state) => ({
-    achievements: state.achievements,
-    quests: state.quests,
-  })));
+  const { achievements, quests } = useTravelStore(
+    useShallow((state) => ({
+      achievements: state.achievements,
+      quests: state.quests,
+    }))
+  );
 
   return (
     <Screen>

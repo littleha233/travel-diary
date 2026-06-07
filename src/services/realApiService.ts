@@ -8,7 +8,14 @@ import { Trip } from '@/types/trip';
 import { TravelUser } from '@/types/user';
 import { ApiClientError, apiClient } from './apiClient';
 import { cloneInitialTravelData, mockTravelService, syncDerivedTravelData } from './mockTravelService';
-import { AIMemoryDraft, AIMemoryGenerationInput, CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
+import {
+  AIMemoryDraft,
+  AIMemoryGenerationInput,
+  CheckInMutationResult,
+  LightUpSpotOptions,
+  TravelData,
+  TravelDataService,
+} from './types';
 
 type AchievementsResponse = {
   achievements: Achievement[];
@@ -90,7 +97,11 @@ async function loadInitialData(): Promise<TravelData> {
   });
 }
 
-async function createCheckIn(spotId: string, options: LightUpSpotOptions, current: TravelData): Promise<CheckInMutationResult> {
+async function createCheckIn(
+  spotId: string,
+  options: LightUpSpotOptions,
+  current: TravelData
+): Promise<CheckInMutationResult> {
   const response = await apiClient.post<CheckInResponse>('/check-ins', {
     spotId,
     tripId: current.trips[0]?.id,

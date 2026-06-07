@@ -104,24 +104,24 @@ Error response:
 
 ## 4. Common Error Codes
 
-| HTTP | Code | Meaning |
-| --- | --- | --- |
-| 400 | `VALIDATION_ERROR` | Request body or query is invalid. |
-| 400 | `LOCATION_REQUIRED` | A GPS-only request is missing coordinates. |
-| 400 | `CHECK_IN_OUT_OF_RANGE` | GPS check-in is outside the spot radius. |
-| 401 | `AUTH_REQUIRED` | Missing or invalid access token. |
-| 403 | `FORBIDDEN` | User cannot access this resource. |
-| 404 | `USER_NOT_FOUND` | User does not exist. |
-| 404 | `CITY_NOT_FOUND` | City does not exist. |
-| 404 | `SPOT_NOT_FOUND` | Spot does not exist. |
-| 404 | `TRIP_NOT_FOUND` | Trip does not exist. |
-| 404 | `IMAGE_NOT_FOUND` | Image asset does not exist. |
-| 404 | `AI_MEMORY_NOT_FOUND` | AI memory does not exist. |
-| 409 | `DUPLICATE_RESOURCE` | A unique resource already exists. |
-| 409 | `TRIP_DATE_CONFLICT` | Trip dates conflict with business rules. |
-| 422 | `AI_MEMORY_NOT_READY` | Trip data is not enough to generate a memory. |
-| 429 | `RATE_LIMITED` | Too many requests. |
-| 500 | `INTERNAL_ERROR` | Unexpected server error. |
+| HTTP | Code                    | Meaning                                       |
+| ---- | ----------------------- | --------------------------------------------- |
+| 400  | `VALIDATION_ERROR`      | Request body or query is invalid.             |
+| 400  | `LOCATION_REQUIRED`     | A GPS-only request is missing coordinates.    |
+| 400  | `CHECK_IN_OUT_OF_RANGE` | GPS check-in is outside the spot radius.      |
+| 401  | `AUTH_REQUIRED`         | Missing or invalid access token.              |
+| 403  | `FORBIDDEN`             | User cannot access this resource.             |
+| 404  | `USER_NOT_FOUND`        | User does not exist.                          |
+| 404  | `CITY_NOT_FOUND`        | City does not exist.                          |
+| 404  | `SPOT_NOT_FOUND`        | Spot does not exist.                          |
+| 404  | `TRIP_NOT_FOUND`        | Trip does not exist.                          |
+| 404  | `IMAGE_NOT_FOUND`       | Image asset does not exist.                   |
+| 404  | `AI_MEMORY_NOT_FOUND`   | AI memory does not exist.                     |
+| 409  | `DUPLICATE_RESOURCE`    | A unique resource already exists.             |
+| 409  | `TRIP_DATE_CONFLICT`    | Trip dates conflict with business rules.      |
+| 422  | `AI_MEMORY_NOT_READY`   | Trip data is not enough to generate a memory. |
+| 429  | `RATE_LIMITED`          | Too many requests.                            |
+| 500  | `INTERNAL_ERROR`        | Unexpected server error.                      |
 
 ## 5. Data Models
 
@@ -489,14 +489,14 @@ GET /cities
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `status` | string | No | `all`, `lit`, `unlit`, `wishlist`. Default `all`. |
-| `province` | string | No | Filter by province name. |
-| `keyword` | string | No | Search city name or tags. |
-| `includeStats` | boolean | No | Include derived user stats. Default `true`. |
-| `page` | number | No | Default `1`. |
-| `pageSize` | number | No | Default `20`, max `100`. |
+| Name           | Type    | Required | Description                                       |
+| -------------- | ------- | -------- | ------------------------------------------------- |
+| `status`       | string  | No       | `all`, `lit`, `unlit`, `wishlist`. Default `all`. |
+| `province`     | string  | No       | Filter by province name.                          |
+| `keyword`      | string  | No       | Search city name or tags.                         |
+| `includeStats` | boolean | No       | Include derived user stats. Default `true`.       |
+| `page`         | number  | No       | Default `1`.                                      |
+| `pageSize`     | number  | No       | Default `20`, max `100`.                          |
 
 Response `200`:
 
@@ -558,15 +558,15 @@ GET /cities/{cityId}
 
 Path parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `cityId` | string | Yes | City ID, for example `hangzhou`. |
+| Name     | Type   | Required | Description                      |
+| -------- | ------ | -------- | -------------------------------- |
+| `cityId` | string | Yes      | City ID, for example `hangzhou`. |
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `include` | string | No | Comma-separated: `spots,quests,trips`. |
+| Name      | Type   | Required | Description                            |
+| --------- | ------ | -------- | -------------------------------------- |
+| `include` | string | No       | Comma-separated: `spots,quests,trips`. |
 
 Response `200`:
 
@@ -621,15 +621,15 @@ GET /spots
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `cityId` | string | No | Filter spots in one city. |
-| `status` | string | No | `all`, `available`, `lit`, `locked`, `wishlist`. |
-| `questId` | string | No | Filter by theme quest. |
-| `keyword` | string | No | Search spot name, description, or tags. |
-| `includeCity` | boolean | No | Include `cityName`. Default `true`. |
-| `page` | number | No | Default `1`. |
-| `pageSize` | number | No | Default `20`, max `100`. |
+| Name          | Type    | Required | Description                                      |
+| ------------- | ------- | -------- | ------------------------------------------------ |
+| `cityId`      | string  | No       | Filter spots in one city.                        |
+| `status`      | string  | No       | `all`, `available`, `lit`, `locked`, `wishlist`. |
+| `questId`     | string  | No       | Filter by theme quest.                           |
+| `keyword`     | string  | No       | Search spot name, description, or tags.          |
+| `includeCity` | boolean | No       | Include `cityName`. Default `true`.              |
+| `page`        | number  | No       | Default `1`.                                     |
+| `pageSize`    | number  | No       | Default `20`, max `100`.                         |
 
 Response `200`:
 
@@ -687,17 +687,17 @@ GET /spots/{spotId}
 
 Path parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `spotId` | string | Yes | Spot ID, for example `broken-bridge`. |
+| Name     | Type   | Required | Description                           |
+| -------- | ------ | -------- | ------------------------------------- |
+| `spotId` | string | Yes      | Spot ID, for example `broken-bridge`. |
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `latitude` | number | No | Current latitude. Used to compute distance. |
-| `longitude` | number | No | Current longitude. Used to compute distance. |
-| `include` | string | No | Comma-separated: `city,photos,quests,trips`. |
+| Name        | Type   | Required | Description                                  |
+| ----------- | ------ | -------- | -------------------------------------------- |
+| `latitude`  | number | No       | Current latitude. Used to compute distance.  |
+| `longitude` | number | No       | Current longitude. Used to compute distance. |
+| `include`   | string | No       | Comma-separated: `city,photos,quests,trips`. |
 
 Response `200`:
 
@@ -760,13 +760,13 @@ GET /spots/nearby
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `latitude` | number | Yes | Current latitude. |
-| `longitude` | number | Yes | Current longitude. |
-| `radiusMeters` | number | No | Search radius. Default `3000`, max `20000`. |
-| `limit` | number | No | Default `10`, max `50`. |
-| `includeLit` | boolean | No | Include already lit spots. Default `false`. |
+| Name           | Type    | Required | Description                                 |
+| -------------- | ------- | -------- | ------------------------------------------- |
+| `latitude`     | number  | Yes      | Current latitude.                           |
+| `longitude`    | number  | Yes      | Current longitude.                          |
+| `radiusMeters` | number  | No       | Search radius. Default `3000`, max `20000`. |
+| `limit`        | number  | No       | Default `10`, max `50`.                     |
+| `includeLit`   | boolean | No       | Include already lit spots. Default `false`. |
 
 Response `200`:
 
@@ -1122,13 +1122,13 @@ GET /trips
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `cityId` | string | No | Filter trips that include a city. |
-| `fromDate` | date | No | Start date lower bound. |
-| `toDate` | date | No | End date upper bound. |
-| `page` | number | No | Default `1`. |
-| `pageSize` | number | No | Default `20`, max `100`. |
+| Name       | Type   | Required | Description                       |
+| ---------- | ------ | -------- | --------------------------------- |
+| `cityId`   | string | No       | Filter trips that include a city. |
+| `fromDate` | date   | No       | Start date lower bound.           |
+| `toDate`   | date   | No       | End date upper bound.             |
+| `page`     | number | No       | Default `1`.                      |
+| `pageSize` | number | No       | Default `20`, max `100`.          |
 
 Response `200`:
 
@@ -1182,15 +1182,15 @@ GET /trips/{tripId}
 
 Path parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `tripId` | string | Yes | Trip ID. |
+| Name     | Type   | Required | Description |
+| -------- | ------ | -------- | ----------- |
+| `tripId` | string | Yes      | Trip ID.    |
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `include` | string | No | Comma-separated: `cities,spots,checkIns,photos,aiMemory`. |
+| Name      | Type   | Required | Description                                               |
+| --------- | ------ | -------- | --------------------------------------------------------- |
+| `include` | string | No       | Comma-separated: `cities,spots,checkIns,photos,aiMemory`. |
 
 Response `200`:
 
@@ -1405,10 +1405,10 @@ GET /achievements
 
 Query parameters:
 
-| Name | Type | Required | Description |
-| --- | --- | --- | --- |
-| `status` | string | No | `all`, `unlocked`, `locked`. Default `all`. |
-| `includeQuests` | boolean | No | Include theme quest progress. Default `true`. |
+| Name            | Type    | Required | Description                                   |
+| --------------- | ------- | -------- | --------------------------------------------- |
+| `status`        | string  | No       | `all`, `unlocked`, `locked`. Default `all`.   |
+| `includeQuests` | boolean | No       | Include theme quest progress. Default `true`. |
 
 Response `200`:
 

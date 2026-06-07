@@ -1,18 +1,31 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AchievementBadge, AppCard, AppText, DetailHeader, ErrorState, ProgressBar, Screen, SectionHeader, SpotCard, StatusChip } from '@/components';
+import {
+  AchievementBadge,
+  AppCard,
+  AppText,
+  DetailHeader,
+  ErrorState,
+  ProgressBar,
+  Screen,
+  SectionHeader,
+  SpotCard,
+  StatusChip,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { getProgressPercent } from '@/utils/travelStats';
 import { theme } from '@/theme/theme';
 
 export default function QuestDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { achievements, quests, spots } = useTravelStore(useShallow((state) => ({
-    achievements: state.achievements,
-    quests: state.quests,
-    spots: state.spots,
-  })));
+  const { achievements, quests, spots } = useTravelStore(
+    useShallow((state) => ({
+      achievements: state.achievements,
+      quests: state.quests,
+      spots: state.spots,
+    }))
+  );
   const quest = quests.find((item) => item.id === id);
 
   if (!quest) {
@@ -45,7 +58,13 @@ export default function QuestDetailScreen() {
       </View>
       <SectionHeader title="任务地点" />
       <View style={styles.list}>
-        {questSpots.length ? questSpots.map((spot) => <SpotCard key={spot.id} spot={spot} />) : <AppCard><AppText variant="body">地点列表将在后续版本接入更多城市数据。</AppText></AppCard>}
+        {questSpots.length ? (
+          questSpots.map((spot) => <SpotCard key={spot.id} spot={spot} />)
+        ) : (
+          <AppCard>
+            <AppText variant="body">地点列表将在后续版本接入更多城市数据。</AppText>
+          </AppCard>
+        )}
       </View>
     </Screen>
   );

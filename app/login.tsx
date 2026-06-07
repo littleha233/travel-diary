@@ -12,12 +12,20 @@ export default function LoginScreen() {
         <LinearGradient colors={[theme.colors.mintLight, theme.colors.mint, theme.colors.purple]} style={styles.logo}>
           <MapPin size={40} color={theme.colors.mapDarkAlt} />
         </LinearGradient>
-        <AppText variant="title" color={theme.colors.white}>TravelAround</AppText>
-        <AppText variant="body" color="#D8D4F4" style={styles.center}>点亮你去过的每一个地方。</AppText>
+        <AppText variant="title" color={theme.colors.white}>
+          TravelAround
+        </AppText>
+        <AppText variant="body" color="#D8D4F4" style={styles.center}>
+          点亮你去过的每一个地方。
+        </AppText>
       </View>
       <AppCard variant="dark" style={styles.card}>
-        <AppText variant="h2" color={theme.colors.white}>游客模式体验</AppText>
-        <AppText variant="body" color="#C7C4EA">本阶段不接真实登录，进入后使用 Nicola 的 mock 旅行档案。</AppText>
+        <AppText variant="h2" color={theme.colors.white}>
+          游客模式体验
+        </AppText>
+        <AppText variant="body" color="#C7C4EA">
+          本阶段不接真实登录，进入后使用 Nicola 的 mock 旅行档案。
+        </AppText>
         <AppButton
           label="进入旅行地图"
           icon={<Sparkles size={18} color={theme.colors.mapDarkAlt} />}

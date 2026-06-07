@@ -14,11 +14,7 @@ export function Screen({ children, dark = false, scroll = true }: ScreenProps) {
 
   return (
     <LinearGradient
-      colors={
-        dark
-          ? [theme.colors.mapDarkAlt, theme.colors.mapDark]
-          : ['#FFFDFF', theme.colors.background]
-      }
+      colors={dark ? [theme.colors.mapDarkAlt, theme.colors.mapDark] : ['#FFFDFF', theme.colors.background]}
       style={styles.root}
     >
       <SafeAreaView style={styles.safe}>

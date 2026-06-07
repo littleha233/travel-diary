@@ -18,7 +18,9 @@ export function CityCard({ city }: CityCardProps) {
           <AppText variant="h3">{city.name}</AppText>
           <StatusChip label={city.lit ? '已点亮' : '想去'} tone={city.lit ? 'mint' : 'gray'} />
         </View>
-        <AppText variant="caption">{city.province} · {city.tags.join(' / ')}</AppText>
+        <AppText variant="caption">
+          {city.province} · {city.tags.join(' / ')}
+        </AppText>
       </View>
     </Pressable>
   );

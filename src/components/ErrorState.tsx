@@ -10,12 +10,18 @@ type ErrorStateProps = {
   onRetry?: () => void;
 };
 
-export function ErrorState({ title = '加载失败', message = '旅行数据暂时没有回来，可以稍后再试。', onRetry }: ErrorStateProps) {
+export function ErrorState({
+  title = '加载失败',
+  message = '旅行数据暂时没有回来，可以稍后再试。',
+  onRetry,
+}: ErrorStateProps) {
   return (
     <View style={styles.state}>
       <CircleAlert size={32} color={theme.colors.danger} />
       <AppText variant="h3">{title}</AppText>
-      <AppText variant="body" style={styles.message}>{message}</AppText>
+      <AppText variant="body" style={styles.message}>
+        {message}
+      </AppText>
       {onRetry ? <AppButton label="重试" variant="secondary" onPress={onRetry} /> : null}
     </View>
   );

@@ -13,14 +13,26 @@ import { CheckInRecord } from '@/types/checkIn';
 import { TravelPlan } from '@/types/plan';
 import { ThemeQuest } from '@/types/quest';
 import { TravelUser } from '@/types/user';
-import { AIMemoryDraft, AIMemoryGenerationInput, CheckInMutationResult, LightUpSpotOptions, TravelData, TravelDataService } from './types';
+import {
+  AIMemoryDraft,
+  AIMemoryGenerationInput,
+  CheckInMutationResult,
+  LightUpSpotOptions,
+  TravelData,
+  TravelDataService,
+} from './types';
 
 const defaultTripId = 'hangzhou-3-days';
 
 export function cloneInitialTravelData(): TravelData {
   return {
     user: { ...initialUser },
-    cities: initialCities.map((city) => ({ ...city, coordinates: { ...city.coordinates }, spotIds: [...city.spotIds], tags: [...city.tags] })),
+    cities: initialCities.map((city) => ({
+      ...city,
+      coordinates: { ...city.coordinates },
+      spotIds: [...city.spotIds],
+      tags: [...city.tags],
+    })),
     spots: initialSpots.map((spot) => ({
       ...spot,
       coordinates: { ...spot.coordinates },
@@ -97,7 +109,9 @@ export function syncDerivedTravelData(state: TravelData): TravelData {
     };
   });
 
-  const achievements = state.achievements.map((achievement) => updateAchievement(achievement, normalizedCities, state.spots, quests));
+  const achievements = state.achievements.map((achievement) =>
+    updateAchievement(achievement, normalizedCities, state.spots, quests)
+  );
 
   const user: TravelUser = {
     ...state.user,
@@ -120,18 +134,35 @@ export function syncDerivedTravelData(state: TravelData): TravelData {
   };
 }
 
-function updateAchievement(achievement: Achievement, cities: TravelData['cities'], spots: TravelData['spots'], quests: ThemeQuest[]) {
+function updateAchievement(
+  achievement: Achievement,
+  cities: TravelData['cities'],
+  spots: TravelData['spots'],
+  quests: ThemeQuest[]
+) {
   const litCityIds = new Set(cities.filter((city) => city.lit).map((city) => city.id));
 
   if (achievement.id === 'first-departure') {
-    return { ...achievement, unlocked: litCityIds.size >= 1, unlockedAt: achievement.unlockedAt ?? new Date().toISOString() };
+    return {
+      ...achievement,
+      unlocked: litCityIds.size >= 1,
+      unlockedAt: achievement.unlockedAt ?? new Date().toISOString(),
+    };
   }
   if (achievement.id === 'city-wanderer') {
-    return { ...achievement, unlocked: litCityIds.size >= 5, unlockedAt: achievement.unlockedAt ?? new Date().toISOString() };
+    return {
+      ...achievement,
+      unlocked: litCityIds.size >= 5,
+      unlockedAt: achievement.unlockedAt ?? new Date().toISOString(),
+    };
   }
   if (achievement.id === 'west-lake-first') {
     const hasWestLakeSpot = spots.some((spot) => spot.questIds.includes('west-lake-ten') && spot.status === 'lit');
-    return { ...achievement, unlocked: hasWestLakeSpot, unlockedAt: achievement.unlockedAt ?? new Date().toISOString() };
+    return {
+      ...achievement,
+      unlocked: hasWestLakeSpot,
+      unlockedAt: achievement.unlockedAt ?? new Date().toISOString(),
+    };
   }
   if (achievement.id === 'west-lake-collector') {
     const westLakeQuest = quests.find((quest) => quest.id === 'west-lake-ten');
@@ -145,7 +176,11 @@ function updateAchievement(achievement: Achievement, cities: TravelData['cities'
   return achievement;
 }
 
-function createLocalCheckIn(current: TravelData, spotId: string, options: LightUpSpotOptions = {}): CheckInMutationResult {
+function createLocalCheckIn(
+  current: TravelData,
+  spotId: string,
+  options: LightUpSpotOptions = {}
+): CheckInMutationResult {
   const targetSpot = current.spots.find((spot) => spot.id === spotId);
   if (!targetSpot) {
     throw new Error('没有找到这个景点');
@@ -181,7 +216,9 @@ function createLocalCheckIn(current: TravelData, spotId: string, options: LightU
           status: 'lit' as const,
           canCheckIn: false,
           tags: Array.from(new Set([...spot.tags.filter((tag) => tag !== '可点亮' && tag !== '心愿'), '已点亮'])),
-          photoIds: checkInPhotoUri ? Array.from(new Set([...spot.photoIds, `local-photo-${checkIn.id}`])) : spot.photoIds,
+          photoIds: checkInPhotoUri
+            ? Array.from(new Set([...spot.photoIds, `local-photo-${checkIn.id}`]))
+            : spot.photoIds,
         }
       : spot
   );
@@ -205,9 +242,13 @@ function createLocalCheckIn(current: TravelData, spotId: string, options: LightU
           spotIds: Array.from(new Set([...trip.spotIds, spotId])),
           checkInIds: Array.from(new Set([...trip.checkInIds, checkIn.id])),
           photoUrls: checkInPhotoUri ? Array.from(new Set([...trip.photoUrls, checkInPhotoUri])) : trip.photoUrls,
-          photoCount: checkInPhotoUri ? (trip.photoCount ?? trip.photoUrls.length) + 1 : trip.photoCount ?? trip.photoUrls.length,
+          photoCount: checkInPhotoUri
+            ? (trip.photoCount ?? trip.photoUrls.length) + 1
+            : (trip.photoCount ?? trip.photoUrls.length),
           summary: `${trip.days} 天 · ${trip.cityIds.length} 座城市 · ${Array.from(new Set([...trip.spotIds, spotId])).length} 个景点 · ${
-            checkInPhotoUri ? (trip.photoCount ?? trip.photoUrls.length) + 1 : trip.photoCount ?? trip.photoUrls.length
+            checkInPhotoUri
+              ? (trip.photoCount ?? trip.photoUrls.length) + 1
+              : (trip.photoCount ?? trip.photoUrls.length)
           } 张照片`,
         }
       : trip
@@ -253,10 +294,7 @@ function createLocalWeekendPlan(current: TravelData) {
   };
 }
 
-const unsafePromptPatterns = [
-  /仇恨|歧视|暴力|自残|色情|违法/,
-  /hate|violent|self-harm|sexual|illegal/i,
-];
+const unsafePromptPatterns = [/仇恨|歧视|暴力|自残|色情|违法/, /hate|violent|self-harm|sexual|illegal/i];
 
 function hasUnsafePrompt(input: string) {
   return unsafePromptPatterns.some((pattern) => pattern.test(input));
@@ -319,7 +357,9 @@ function generateLocalAIMemoryDraft(input: AIMemoryGenerationInput, current: Tra
   const photoCount = trip.photoCount ?? trip.photoUrls.length;
   const styleTone = input.style || '自然日记';
   const noteSentence = userNote ? `你补充的线索是：“${userNote}”。` : '没有额外补充，于是这版文字更像一篇自然日记。';
-  const moodSentence = moodTexts ? `当时留下的心情包括：${moodTexts}。` : '这趟旅行没有太多刻意记录的心情，但地点本身已经留下了足够清晰的轮廓。';
+  const moodSentence = moodTexts
+    ? `当时留下的心情包括：${moodTexts}。`
+    : '这趟旅行没有太多刻意记录的心情，但地点本身已经留下了足够清晰的轮廓。';
 
   return {
     tripId: trip.id,

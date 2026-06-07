@@ -19,7 +19,9 @@ export function PlanCard({ plan }: PlanCardProps) {
         <View style={styles.content}>
           <StatusChip label="Next Mission" />
           <View>
-            <AppText variant="h2" color={theme.colors.white}>{plan.title}</AppText>
+            <AppText variant="h2" color={theme.colors.white}>
+              {plan.title}
+            </AppText>
             <AppText variant="caption" color="#D8D4F4">
               {plan.days} 天 · {plan.total} 个待点亮地点 · 进度 {plan.progress} / {plan.total}
             </AppText>
