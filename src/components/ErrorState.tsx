@@ -7,15 +7,16 @@ import { theme } from '@/theme/theme';
 type ErrorStateProps = {
   title?: string;
   message?: string;
+  onRetry?: () => void;
 };
 
-export function ErrorState({ title = '加载失败', message = '旅行数据暂时没有回来，可以稍后再试。' }: ErrorStateProps) {
+export function ErrorState({ title = '加载失败', message = '旅行数据暂时没有回来，可以稍后再试。', onRetry }: ErrorStateProps) {
   return (
     <View style={styles.state}>
       <CircleAlert size={32} color={theme.colors.danger} />
       <AppText variant="h3">{title}</AppText>
       <AppText variant="body" style={styles.message}>{message}</AppText>
-      <AppButton label="重试" variant="secondary" />
+      {onRetry ? <AppButton label="重试" variant="secondary" onPress={onRetry} /> : null}
     </View>
   );
 }

@@ -97,3 +97,54 @@ Known limitations:
 - Web photo caching uses the selected browser URI directly; native iOS/Android copies the image into the app document directory.
 - Expo Go can exercise the APIs, but custom native permission copy is best verified in a Development Build.
 - No backend upload, cross-device sync, EXIF processing, or map geofence monitoring is included in this phase.
+
+## Phase 5 Data Source Switching
+
+Data flow:
+
+- Screens read and mutate data through `useTravelStore`.
+- `useTravelStore` calls `travelDataService`.
+- `travelDataService` selects `mockTravelService` or `realApiService` from environment config.
+- `realApiService` uses the shared `apiClient`, which unwraps API envelopes and normalizes network/API errors.
+- Loading, error, empty, and retry states stay in the store/component layer; screen components do not call `fetch` directly.
+
+Switch between mock and API:
+
+1. Copy `.env.example` to `.env`.
+2. Use mock mode for local frontend work:
+
+```bash
+EXPO_PUBLIC_TRAVEL_DATA_SOURCE=mock
+```
+
+3. Use real API mode when a backend is running:
+
+```bash
+EXPO_PUBLIC_TRAVEL_DATA_SOURCE=api
+EXPO_PUBLIC_API_BASE_URL=http://localhost:8080/v1
+```
+
+4. Restart Expo after changing env values.
+
+Connected API contract endpoints:
+
+- `GET /users/me`
+- `GET /cities`
+- `GET /spots`
+- `GET /trips`
+- `GET /trips/{tripId}`
+- `GET /achievements`
+- `POST /check-ins`
+- `POST /trips/{tripId}/ai-memories`
+
+Not connected yet:
+
+- `GET /home/summary`
+- `GET /cities/{cityId}`
+- `GET /spots/{spotId}`
+- `GET /spots/nearby`
+- `POST /images/upload-url`
+- `POST /images/{imageId}/confirm`
+- `POST /trips`
+- `GET /ai-memories/{memoryId}`
+- Travel plan APIs are not in the Phase 4 contract yet, so plans remain local in API mode.

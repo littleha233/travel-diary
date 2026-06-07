@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { Sparkles } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, ErrorState, PhotoGrid, Screen, SectionHeader, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
@@ -7,11 +8,11 @@ import { theme } from '@/theme/theme';
 
 export default function AIMemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { aiMemories, generateAIMemory, trips } = useTravelStore((state) => ({
+  const { aiMemories, generateAIMemory, trips } = useTravelStore(useShallow((state) => ({
     aiMemories: state.aiMemories,
     generateAIMemory: state.generateAIMemory,
     trips: state.trips,
-  }));
+  })));
   const trip = trips.find((item) => item.id === id);
   const memory = aiMemories.find((item) => item.id === id) ?? aiMemories.find((item) => item.tripId === trip?.id);
 
@@ -58,11 +59,11 @@ export default function AIMemoryScreen() {
         <AppButton
           label={memory ? '重新生成 mock AI 回忆' : '生成 mock AI 回忆'}
           fullWidth
-          onPress={() => {
+          onPress={async () => {
             if (!activeTrip) {
               return;
             }
-            const nextMemory = generateAIMemory(activeTrip.id);
+            const nextMemory = await generateAIMemory(activeTrip.id);
             if (nextMemory) {
               router.replace(`/ai-memory/${nextMemory.id}`);
             }

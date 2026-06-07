@@ -1,19 +1,21 @@
 import { router } from 'expo-router';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { Camera, ChevronRight, Settings } from 'lucide-react-native';
 import { AchievementBadge, AppCard, AppText, ErrorState, LoadingState, MapPreview, Screen, SectionHeader, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function ProfileScreen() {
-  const { status, errorMessage, achievements, cities, trips, user } = useTravelStore((state) => ({
+  const { status, errorMessage, achievements, cities, trips, user, retry } = useTravelStore(useShallow((state) => ({
     status: state.status,
     errorMessage: state.errorMessage,
     achievements: state.achievements,
     cities: state.cities,
     trips: state.trips,
     user: state.user,
-  }));
+    retry: state.retry,
+  })));
   const primaryTrip = trips[0];
 
   if (status === 'loading') {
@@ -27,7 +29,7 @@ export default function ProfileScreen() {
   if (status === 'error') {
     return (
       <Screen dark>
-        <ErrorState message={errorMessage} />
+        <ErrorState message={errorMessage} onRetry={retry} />
       </Screen>
     );
   }

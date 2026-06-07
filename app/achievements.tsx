@@ -1,14 +1,15 @@
 import { StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { AchievementBadge, AppCard, AppText, DetailHeader, ProgressBar, Screen, SectionHeader } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 import { getProgressPercent } from '@/utils/travelStats';
 
 export default function AchievementsScreen() {
-  const { achievements, quests } = useTravelStore((state) => ({
+  const { achievements, quests } = useTravelStore(useShallow((state) => ({
     achievements: state.achievements,
     quests: state.quests,
-  }));
+  })));
 
   return (
     <Screen>

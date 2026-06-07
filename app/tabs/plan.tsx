@@ -1,18 +1,20 @@
 import { Heart, MapPinned } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { AppButton, AppCard, AppText, EmptyState, ErrorState, LoadingState, PlanCard, Screen, SectionHeader, StatusChip, ThemeQuestCard } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function PlanScreen() {
-  const { status, errorMessage, cities, plans, quests, createWeekendPlan } = useTravelStore((state) => ({
+  const { status, errorMessage, cities, plans, quests, createWeekendPlan, retry } = useTravelStore(useShallow((state) => ({
     status: state.status,
     errorMessage: state.errorMessage,
     cities: state.cities,
     plans: state.plans,
     quests: state.quests,
     createWeekendPlan: state.createWeekendPlan,
-  }));
+    retry: state.retry,
+  })));
   const plan = plans[0];
   const wishlist = plan ? cities.filter((city) => plan.wishlistCityIds.includes(city.id)) : [];
 
@@ -27,7 +29,7 @@ export default function PlanScreen() {
   if (status === 'error') {
     return (
       <Screen dark>
-        <ErrorState message={errorMessage} />
+        <ErrorState message={errorMessage} onRetry={retry} />
       </Screen>
     );
   }
