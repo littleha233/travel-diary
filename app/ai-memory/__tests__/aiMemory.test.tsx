@@ -1,4 +1,4 @@
-import { fireEvent, render, userEvent, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { useLocalSearchParams } from 'expo-router';
 import AIMemoryScreen from '../[id]';
 import { trips } from '@/mock/trips';
@@ -48,22 +48,21 @@ describe('AIMemoryScreen generation retry', () => {
     });
     generateAIMemoryDraft.mockResolvedValueOnce(generatedDraft);
 
-    const { getAllByText, getByDisplayValue, getByPlaceholderText, getByText } = await render(<AIMemoryScreen />);
-    const user = userEvent.setup();
-
+    const { getAllByText, getByDisplayValue, getByPlaceholderText, getByText } = render(<AIMemoryScreen />);
     fireEvent.changeText(getByPlaceholderText('比如：想突出断桥边的风、和朋友散步的轻松感。'), '突出轻松散步。');
-    await user.press(getAllByText('生成 AI 回忆').at(-1)!);
+    fireEvent.press(getAllByText('生成 AI 回忆').at(-1)!);
 
     await waitFor(() => {
+      expect(generateAIMemoryDraft).toHaveBeenCalledTimes(1);
       expect(getByText('生成失败，可重试')).toBeTruthy();
     });
     expect(getByDisplayValue('突出轻松散步。')).toBeTruthy();
 
-    await user.press(getAllByText('生成 AI 回忆').at(-1)!);
+    fireEvent.press(getAllByText('生成 AI 回忆').at(-1)!);
 
     await waitFor(() => {
+      expect(generateAIMemoryDraft).toHaveBeenCalledTimes(2);
       expect(getByDisplayValue('在杭州，把时间走慢')).toBeTruthy();
     });
-    expect(generateAIMemoryDraft).toHaveBeenCalledTimes(2);
   });
 });
