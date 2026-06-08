@@ -17,10 +17,10 @@ Status legend:
 | Login / guest entry           | Completed | `/login`                                           | `app/login.tsx`                                                                                 |
 | Onboarding                    | Completed | `/onboarding`                                      | `app/onboarding.tsx`                                                                            |
 | Home dashboard                | Completed | `/tabs/home`                                       | `app/tabs/home.tsx`, `src/components/MapPreview.tsx`, `src/services/map/mockMapProvider.ts`     |
-| Map tab                       | Completed | `/tabs/map`                                        | `app/tabs/map.tsx`, `src/components/MapPreview.tsx`                                             |
+| Map tab                       | Completed | `/tabs/map`                                        | `app/tabs/map.tsx`, `src/components/ChinaMapWebView.tsx`                                        |
 | Plan tab                      | Completed | `/tabs/plan`                                       | `app/tabs/plan.tsx`, `src/components/PlanCard.tsx`, `src/mock/plans.ts`                         |
 | Check-in tab                  | Completed | `/tabs/checkin`                                    | `app/tabs/checkin.tsx`, `src/store/travelStore.ts`, `src/services/mockTravelService.ts`         |
-| Community route               | Completed | `/tabs/community`                                  | `app/tabs/community.tsx`, `src/components/CommunityCard.tsx`, `src/store/travelStore.ts`        |
+| Community tab                 | Completed | `/tabs/community`                                  | `app/tabs/community.tsx`, `src/components/CommunityCard.tsx`, `src/store/travelStore.ts`        |
 | Profile tab                   | Completed | `/tabs/profile`                                    | `app/tabs/profile.tsx`, `src/components/AchievementBadge.tsx`                                   |
 | Settings                      | Completed | `/settings`                                        | `app/settings.tsx`, `src/store/travelStore.ts`                                                  |
 | City detail                   | Completed | `/city/{cityId}`                                   | `app/city/[id].tsx`, `src/components/SpotCard.tsx`, `src/components/MapPreview.tsx`             |
@@ -61,12 +61,12 @@ Status legend:
 | AI memory editable save          | Completed | Generate, edit, save                           | `app/ai-memory/[id].tsx`, `src/store/travelStore.ts`                                    |
 | AI generation failure retry      | Completed | Simulated by tests                             | `app/ai-memory/__tests__/aiMemory.test.tsx`                                             |
 | Real AI provider integration     | Not Done  | N/A                                            | Backend future work                                                                     |
-| Custom map city points           | Completed | `/tabs/map`                                    | `src/components/MapPreview.tsx`, `src/mock/cities.ts`                                   |
-| Custom map spot points           | Completed | `/city/{cityId}`                               | `src/components/MapPreview.tsx`, `src/services/map/mockMapProvider.ts`                  |
+| WebView map city points          | Completed | `/tabs/map`                                    | `src/components/ChinaMapWebView.tsx`, `src/mock/cities.ts`                              |
+| WebView map spot points          | Completed | `/tabs/map`                                    | `src/components/ChinaMapWebView.tsx`, `src/mock/spots.ts`                               |
 | Map layer switching              | Completed | `/tabs/map` plus/minus or layer pills          | `src/components/MapPreview.tsx`                                                         |
 | Share card skeleton              | Completed | Trip / achievement share entry                 | `app/share-card/[id].tsx`                                                               |
 | Nearby POI calculation           | Completed | Spot layer panel                               | `src/services/map/mockMapProvider.ts`, `src/utils/geo.ts`                               |
-| Real map SDK                     | Not Done  | N/A                                            | `docs/MAP_PROVIDER.md`                                                                  |
+| Native map SDK                   | Not Done  | N/A                                            | `docs/MAP_PROVIDER.md`                                                                  |
 | Image upload API                 | Not Done  | N/A                                            | `API_CONTRACT.md` only                                                                  |
 | Trip creation API                | Not Done  | N/A                                            | `API_CONTRACT.md` only                                                                  |
 | Travel plan API                  | Not Done  | N/A                                            | Future API contract                                                                     |

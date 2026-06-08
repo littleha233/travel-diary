@@ -21,7 +21,8 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 
 - Expo Router app shell with onboarding, login, bottom tabs, and detail routes.
 - PRD-style home dashboard with data cards, recent trip, map summary, recommended task, and quick entries.
-- Dedicated map tab with custom mock map, city points, layer switching, search input, and point navigation.
+- Dedicated map tab with WebView real map, city / spot points, search filtering, pan / zoom, and point navigation.
+- Five bottom tabs: Home, Map, CheckIn, Community, and Profile.
 - City detail, spot detail, trip detail, plan detail, quest detail, achievements, community, profile, and settings screens.
 - Local mock data for user, cities, spots, trips, check-ins, AI memories, achievements, quests, plans, and community posts.
 - Zustand store with persisted local travel state.
@@ -47,7 +48,7 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 - Real authentication and account lifecycle.
 - Real OpenAI or AI provider integration.
 - Real image upload, object storage, and backend image confirmation.
-- Real map SDK integration with AMap / Gaode, Tencent Maps, Mapbox, or another provider.
+- Native map SDK integration with AMap / Gaode, Tencent Maps, Mapbox, or another provider.
 - Real POI provider search.
 - Real geofencing or continuous location monitoring.
 - Real trip creation API integration in API mode.
@@ -70,7 +71,7 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 ## Risks
 
 - Real backend integration may expose contract drift because only part of the API contract is currently wired in `realApiService`.
-- Domestic map integration requires provider selection, GCJ-02 handling, SDK key management, privacy compliance, and map data compliance review.
+- Domestic production map integration still requires provider selection, GCJ-02 handling, SDK key management, privacy compliance, and map data compliance review.
 - AI memory generation needs backend content safety, rate limiting, audit logging, and provider retry/timeout policy before production.
 - Image upload and user-generated content need moderation, storage cost controls, and privacy review.
 - Persisted local mock data can mask backend loading issues during API-mode testing if not reset.

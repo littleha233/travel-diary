@@ -33,3 +33,11 @@ jest.mock('expo-location', () => ({
   hasServicesEnabledAsync: jest.fn(),
   requestForegroundPermissionsAsync: jest.fn(),
 }));
+
+jest.mock('react-native-webview', () => {
+  const reactNative = jest.requireActual('react-native');
+
+  return {
+    WebView: reactNative.View,
+  };
+});

@@ -3,7 +3,7 @@ import { Bell, LocateFixed, Search } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AppText, ErrorState, LoadingState, MapPreview, Screen } from '@/components';
+import { AppCard, AppText, ChinaMapWebView, ErrorState, LoadingState, Screen, StatusChip } from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
@@ -53,7 +53,7 @@ export default function MapScreen() {
 
   if (status === 'loading') {
     return (
-      <Screen dark scroll={false}>
+      <Screen dark>
         <LoadingState label="正在恢复本地旅行地图..." />
       </Screen>
     );
@@ -68,7 +68,7 @@ export default function MapScreen() {
   }
 
   return (
-    <Screen dark scroll={false}>
+    <Screen dark>
       <View style={styles.content}>
         <View style={styles.top}>
           <View>
@@ -105,23 +105,77 @@ export default function MapScreen() {
             {searchResult.quests.length} 个主题
           </AppText>
         ) : null}
-        <MapPreview
+        <ChinaMapWebView
           cities={searchResult.cities}
           spots={searchResult.spots}
-          quests={searchResult.quests}
-          litCityCount={user.litCityCount}
-          provinceCount={user.provinceCount}
-          exploredSpotCount={user.exploredSpotCount}
+          onPointPress={(point) => router.push(point.kind === 'city' ? `/city/${point.id}` : `/spot/${point.id}`)}
         />
+        <View style={styles.stats}>
+          <MapStat value={`${user.litCityCount}`} label="点亮城市" />
+          <MapStat value={`${user.provinceCount}`} label="省份" />
+          <MapStat value={`${user.exploredSpotCount}`} label="景点" />
+        </View>
+        {hasQuery ? (
+          <View style={styles.results}>
+            {searchResult.cities.slice(0, 4).map((city) => (
+              <Pressable key={city.id} onPress={() => router.push(`/city/${city.id}`)}>
+                <AppCard variant="dark" style={styles.resultRow}>
+                  <View style={styles.resultText}>
+                    <AppText variant="h3" color={theme.colors.white}>
+                      {city.name}
+                    </AppText>
+                    <AppText variant="caption" color="#C7C4EA">
+                      {city.province} · {city.tags.join(' / ')}
+                    </AppText>
+                  </View>
+                  <StatusChip label="城市" tone={city.lit ? 'mint' : 'gray'} />
+                </AppCard>
+              </Pressable>
+            ))}
+            {searchResult.spots.slice(0, 5).map((spot) => (
+              <Pressable key={spot.id} onPress={() => router.push(`/spot/${spot.id}`)}>
+                <AppCard variant="dark" style={styles.resultRow}>
+                  <View style={styles.resultText}>
+                    <AppText variant="h3" color={theme.colors.white}>
+                      {spot.name}
+                    </AppText>
+                    <AppText variant="caption" color="#C7C4EA">
+                      {spot.distance} · {spot.tags.join(' / ')}
+                    </AppText>
+                  </View>
+                  <StatusChip label="景点" tone={spot.status === 'lit' ? 'mint' : 'gold'} />
+                </AppCard>
+              </Pressable>
+            ))}
+            {!resultCount ? (
+              <AppCard variant="dark">
+                <AppText variant="body" color="#D8D4F4">
+                  没有找到匹配的城市、景点或主题。
+                </AppText>
+              </AppCard>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     </Screen>
   );
 }
 
+function MapStat({ value, label }: { value: string; label: string }) {
+  return (
+    <AppCard variant="dark" style={styles.stat}>
+      <AppText variant="h2" color={theme.colors.white}>
+        {value}
+      </AppText>
+      <AppText variant="caption" color="#C7C4EA">
+        {label}
+      </AppText>
+    </AppCard>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
-    flex: 1,
-    padding: theme.spacing.page,
     paddingBottom: theme.components.tabHeight + theme.spacing.lg,
   },
   top: {
@@ -164,5 +218,27 @@ const styles = StyleSheet.create({
   },
   resultLabel: {
     marginBottom: theme.spacing.md,
+  },
+  stats: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  stat: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  results: {
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+  resultRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  resultText: {
+    flex: 1,
+    gap: theme.spacing.xs,
   },
 });

@@ -46,7 +46,7 @@ The app can run on local mock data or a backend API contract. It does not connec
 Implemented screens include:
 
 - Login / guest entry
-- 5 bottom tabs: Home, Plan, CheckIn, Community, Profile
+- 5 bottom tabs: Home, Map, CheckIn, Community, Profile
 - City detail
 - Spot detail
 - Plan detail

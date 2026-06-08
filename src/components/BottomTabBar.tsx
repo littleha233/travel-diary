@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Home, Map, MapPin, User } from 'lucide-react-native';
+import { Home, Map, MapPin, MessageCircle, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from './AppText';
 import { theme } from '@/theme/theme';
@@ -8,6 +8,7 @@ const icons = {
   home: Home,
   map: Map,
   checkin: MapPin,
+  community: MessageCircle,
   profile: User,
 };
 
@@ -15,6 +16,7 @@ const labels = {
   home: '首页',
   map: '地图',
   checkin: '点亮',
+  community: '社区',
   profile: '我的',
 };
 

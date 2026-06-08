@@ -3,6 +3,7 @@ export * from './AppButton';
 export * from './AppCard';
 export * from './AppText';
 export * from './BottomTabBar';
+export * from './ChinaMapWebView';
 export * from './CityCard';
 export * from './CommunityCard';
 export * from './DetailHeader';
