@@ -1,4 +1,5 @@
 import { serviceConfig } from './config';
+import { getAccessToken } from './authSession';
 
 type ApiMeta = {
   requestId?: string;
@@ -57,6 +58,7 @@ function buildUrl(path: string) {
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? serviceConfig.requestTimeoutMs);
+  const accessToken = await getAccessToken();
 
   try {
     const response = await fetch(buildUrl(path), {
@@ -64,6 +66,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...options.headers,
       },
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
@@ -105,4 +108,5 @@ export const apiClient = {
   get: <T>(path: string, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: 'GET' }),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) =>
     apiRequest<T>(path, { ...options, method: 'POST', body }),
+  delete: <T>(path: string, options?: RequestOptions) => apiRequest<T>(path, { ...options, method: 'DELETE' }),
 };

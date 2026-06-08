@@ -1,5 +1,27 @@
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const store = new Map<string, string>();
+  const asyncStorage = {
+    clear: jest.fn(async () => {
+      store.clear();
+    }),
+    getItem: jest.fn(async (key: string) => store.get(key) ?? null),
+    removeItem: jest.fn(async (key: string) => {
+      store.delete(key);
+    }),
+    setItem: jest.fn(async (key: string, value: string) => {
+      store.set(key, value);
+    }),
+  };
+
+  return {
+    __esModule: true,
+    default: asyncStorage,
+    ...asyncStorage,
+  };
+});
+
 jest.mock('expo-router', () => ({
   router: {
     back: jest.fn(),

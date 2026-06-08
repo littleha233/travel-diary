@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import { Bell, Image, Lock, MapPin, User } from 'lucide-react-native';
 import { AppButton, AppCard, AppText, DetailHeader, Screen, StatusChip } from '@/components';
+import { serviceConfig } from '@/services/config';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
@@ -14,6 +15,7 @@ const items = [
 
 export default function SettingsScreen() {
   const resetLocalProgress = useTravelStore((state) => state.resetLocalProgress);
+  const isApiMode = serviceConfig.dataSource === 'api';
 
   return (
     <Screen>
@@ -34,9 +36,17 @@ export default function SettingsScreen() {
         })}
       </View>
       <AppCard style={styles.resetCard}>
-        <AppText variant="h3">本地 mock 数据</AppText>
-        <AppText variant="body">清空持久化后的进度，回到 Stage 2 初始状态，方便重复验收点亮流程。</AppText>
-        <AppButton label="重置本地进度" variant="secondary" onPress={resetLocalProgress} />
+        <AppText variant="h3">{isApiMode ? '服务器数据同步' : '本地 mock 数据'}</AppText>
+        <AppText variant="body">
+          {isApiMode
+            ? '重新从真实后端拉取旅行数据，不会删除服务器记录。'
+            : '清空持久化后的进度，回到 Stage 2 初始状态，方便重复验收点亮流程。'}
+        </AppText>
+        <AppButton
+          label={isApiMode ? '重新同步服务器数据' : '重置本地进度'}
+          variant="secondary"
+          onPress={resetLocalProgress}
+        />
       </AppCard>
     </Screen>
   );

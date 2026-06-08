@@ -2,12 +2,16 @@ import { Achievement } from '@/types/achievement';
 import { AIMemory } from '@/types/aiMemory';
 import { CheckInRecord } from '@/types/checkIn';
 import { City } from '@/types/city';
+import { CommunityPost } from '@/types/community';
+import { TravelPlan } from '@/types/plan';
 import { ThemeQuest } from '@/types/quest';
 import { Spot } from '@/types/spot';
 import { Trip } from '@/types/trip';
 import { TravelUser } from '@/types/user';
 import { ApiClientError, apiClient } from './apiClient';
-import { cloneInitialTravelData, mockTravelService, syncDerivedTravelData } from './mockTravelService';
+import { syncDerivedTravelData } from './mockTravelService';
+import { ensureAuthSession } from './authSession';
+import { uploadImages } from './imageUploadService';
 import {
   AIMemoryDraft,
   AIMemoryGenerationInput,
@@ -31,6 +35,22 @@ type TripDetailResponse = {
 
 type CheckInResponse = {
   checkIn?: CheckInRecord;
+};
+
+type CreateTripResponse = {
+  trip: Trip;
+};
+
+type PlanResponse = {
+  plan: TravelPlan;
+};
+
+type CityResponse = {
+  city: City;
+};
+
+type SpotResponse = {
+  spot: Spot;
 };
 
 type SaveAIMemoryRequest = {
@@ -75,12 +95,14 @@ async function loadTripDetails(trips: Trip[]) {
 }
 
 async function loadInitialData(): Promise<TravelData> {
-  const fallback = cloneInitialTravelData();
-  const [user, cities, spots, trips, achievementData] = await Promise.all([
+  await ensureAuthSession();
+  const [user, cities, spots, trips, plans, communityPosts, achievementData] = await Promise.all([
     apiClient.get<TravelUser>('/users/me'),
     apiClient.get<City[]>(`/cities${toQuery({ pageSize: 100, includeStats: true })}`),
     apiClient.get<Spot[]>(`/spots${toQuery({ pageSize: 100, includeCity: true })}`),
     apiClient.get<Trip[]>(`/trips${toQuery({ pageSize: 100 })}`),
+    apiClient.get<TravelPlan[]>(`/plans${toQuery({ pageSize: 100 })}`),
+    apiClient.get<CommunityPost[]>(`/community/posts${toQuery({ pageSize: 100 })}`),
     apiClient.get<AchievementsResponse>(`/achievements${toQuery({ includeQuests: true })}`),
   ]);
   const tripDetails = await loadTripDetails(trips);
@@ -89,14 +111,26 @@ async function loadInitialData(): Promise<TravelData> {
     user,
     cities,
     spots,
-    plans: fallback.plans,
+    plans,
     quests: achievementData.quests,
     trips: tripDetails.trips,
     checkIns: tripDetails.checkIns,
     aiMemories: tripDetails.aiMemories,
     achievements: achievementData.achievements,
-    communityPosts: fallback.communityPosts,
+    communityPosts,
   });
+}
+
+function getPhotoUploadUris(options: LightUpSpotOptions) {
+  return options.cachedPhotoUris?.length
+    ? options.cachedPhotoUris
+    : options.photoUris?.length
+      ? options.photoUris
+      : options.cachedPhotoUri
+        ? [options.cachedPhotoUri]
+        : options.photoUri
+          ? [options.photoUri]
+          : [];
 }
 
 async function createCheckIn(
@@ -104,13 +138,15 @@ async function createCheckIn(
   options: LightUpSpotOptions,
   current: TravelData
 ): Promise<CheckInMutationResult> {
+  const photoIds = await uploadImages(getPhotoUploadUris(options));
   const response = await apiClient.post<CheckInResponse>('/check-ins', {
     spotId,
     tripId: options.tripId ?? current.trips[0]?.id,
     type: options.type === 'gps' ? 'gps' : 'manual',
     moodText: options.moodText,
     location: options.location,
-    photoIds: [],
+    distanceMeters: options.distanceMeters,
+    photoIds,
     clientRequestId: `client-${Date.now()}`,
   });
   const data = await loadInitialData();
@@ -121,8 +157,80 @@ async function createCheckIn(
   };
 }
 
-async function createTrip(input: CreateTripInput, current: TravelData) {
-  return mockTravelService.createTrip(input, current);
+function mapPrivacyToVisibility(privacy: CreateTripInput['privacy']) {
+  if (privacy === 'friends') {
+    return 'unlisted';
+  }
+
+  return privacy;
+}
+
+async function createTrip(input: CreateTripInput) {
+  const response = await apiClient.post<CreateTripResponse>('/trips', {
+    title: input.title,
+    cityId: input.cityId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    visibility: mapPrivacyToVisibility(input.privacy),
+  });
+  const data = await loadInitialData();
+
+  return {
+    trip: response.trip,
+    data,
+  };
+}
+
+async function createWeekendPlan() {
+  const response = await apiClient.post<PlanResponse>('/plans/weekend-template', {
+    clientRequestId: `client-${Date.now()}`,
+  });
+  const data = await loadInitialData();
+
+  return {
+    plan: response.plan,
+    data,
+  };
+}
+
+async function toggleCityManualLight(cityId: string, current: TravelData) {
+  const city = current.cities.find((item) => item.id === cityId);
+  const response = city?.manuallyLit
+    ? await apiClient.delete<CityResponse>(`/cities/${cityId}/manual-light`)
+    : await apiClient.post<CityResponse>(`/cities/${cityId}/manual-light`);
+  const data = await loadInitialData();
+
+  return {
+    city: response.city,
+    data,
+  };
+}
+
+async function toggleWishlistCity(cityId: string, current: TravelData) {
+  const city = current.cities.find((item) => item.id === cityId);
+  const response = city?.wished
+    ? await apiClient.delete<CityResponse>(`/wishlist/cities/${cityId}`)
+    : await apiClient.post<CityResponse>(`/wishlist/cities/${cityId}`);
+  const data = await loadInitialData();
+
+  return {
+    city: response.city,
+    data,
+  };
+}
+
+async function toggleWishlistSpot(spotId: string, current: TravelData) {
+  const spot = current.spots.find((item) => item.id === spotId);
+  const response =
+    spot?.status === 'wishlist'
+      ? await apiClient.delete<SpotResponse>(`/wishlist/spots/${spotId}`)
+      : await apiClient.post<SpotResponse>(`/wishlist/spots/${spotId}`);
+  const data = await loadInitialData();
+
+  return {
+    spot: response.spot,
+    data,
+  };
 }
 
 function isTransientApiError(error: unknown) {
@@ -196,11 +304,11 @@ async function saveAIMemory(draft: AIMemoryDraft): Promise<{ memory: AIMemory; d
 export const realApiService: TravelDataService = {
   loadInitialData,
   createCheckIn,
-  createWeekendPlan: async (current) => mockTravelService.createWeekendPlan(current),
+  createWeekendPlan,
   createTrip,
-  toggleCityManualLight: async (cityId, current) => mockTravelService.toggleCityManualLight(cityId, current),
-  toggleWishlistCity: async (cityId, current) => mockTravelService.toggleWishlistCity(cityId, current),
-  toggleWishlistSpot: async (spotId, current) => mockTravelService.toggleWishlistSpot(spotId, current),
+  toggleCityManualLight,
+  toggleWishlistCity,
+  toggleWishlistSpot,
   generateAIMemoryDraft,
   saveAIMemory,
 };

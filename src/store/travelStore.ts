@@ -244,6 +244,7 @@ export const useTravelStore = create<TravelStoreState>()(
         }
       },
       resetLocalProgress: async () => {
+        set({ status: 'loading', errorMessage: undefined });
         const data = await travelDataService.loadInitialData();
         set({
           ...data,
@@ -255,18 +256,24 @@ export const useTravelStore = create<TravelStoreState>()(
     {
       name: 'travelaround-local-loop-v1',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        user: state.user,
-        cities: state.cities,
-        spots: state.spots,
-        plans: state.plans,
-        quests: state.quests,
-        trips: state.trips,
-        checkIns: state.checkIns,
-        aiMemories: state.aiMemories,
-        achievements: state.achievements,
-        communityPosts: state.communityPosts,
-      }),
+      partialize: (state) =>
+        state.dataSource === 'api'
+          ? {
+              dataSource: state.dataSource,
+            }
+          : {
+              dataSource: state.dataSource,
+              user: state.user,
+              cities: state.cities,
+              spots: state.spots,
+              plans: state.plans,
+              quests: state.quests,
+              trips: state.trips,
+              checkIns: state.checkIns,
+              aiMemories: state.aiMemories,
+              achievements: state.achievements,
+              communityPosts: state.communityPosts,
+            },
       onRehydrateStorage: () => (state, error) => {
         if (error) {
           state?.setError('本地旅行数据恢复失败');

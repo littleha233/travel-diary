@@ -54,6 +54,7 @@ Status legend:
 | Web photo fallback               | Completed | Web photo check-in                             | `app/tabs/checkin.tsx`                                                                  |
 | API contract                     | Completed | Read contract                                  | `API_CONTRACT.md`                                                                       |
 | Mock / real API switch           | Completed | Set `EXPO_PUBLIC_TRAVEL_DATA_SOURCE`           | `src/services/config.ts`, `src/services/travelDataService.ts`, `.env.example`           |
+| Guest API auth wiring            | Partial   | API mode obtains/stores guest token            | `src/services/authSession.ts`, `src/services/apiClient.ts`, `app/login.tsx`             |
 | Real API loading                 | Partial   | API mode with backend                          | `src/services/realApiService.ts`, `src/services/apiClient.ts`                           |
 | Check-in API integration         | Partial   | API mode -> check-in with backend              | `src/services/realApiService.ts`                                                        |
 | AI memory generation             | Completed | `/ai-memory/{tripId}` -> generate draft        | `app/ai-memory/[id].tsx`, `src/services/mockTravelService.ts`                           |
@@ -67,9 +68,9 @@ Status legend:
 | Share card skeleton              | Completed | Trip / achievement share entry                 | `app/share-card/[id].tsx`                                                               |
 | Nearby POI calculation           | Completed | Spot layer panel                               | `src/services/map/mockMapProvider.ts`, `src/utils/geo.ts`                               |
 | Native map SDK                   | Not Done  | N/A                                            | `docs/MAP_PROVIDER.md`                                                                  |
-| Image upload API                 | Not Done  | N/A                                            | `API_CONTRACT.md` only                                                                  |
-| Trip creation API                | Not Done  | N/A                                            | `API_CONTRACT.md` only                                                                  |
-| Travel plan API                  | Not Done  | N/A                                            | Future API contract                                                                     |
+| Image upload API                 | Partial   | API mode uploads selected check-in photos      | `src/services/imageUploadService.ts`, `src/services/realApiService.ts`                  |
+| Trip creation API                | Partial   | API mode calls `POST /trips`                   | `src/services/realApiService.ts`, `app/create-trip.tsx`                                 |
+| Travel plan API                  | Partial   | API mode calls plan endpoints                  | `src/services/realApiService.ts`                                                        |
 | ESLint                           | Completed | `npm run lint`                                 | `eslint.config.js`                                                                      |
 | Prettier                         | Completed | `npm run format:check`                         | `.prettierrc`, `.prettierignore`                                                        |
 | TypeScript check                 | Completed | `npm run typecheck`                            | `tsconfig.json`                                                                         |

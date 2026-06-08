@@ -122,19 +122,33 @@ EXPO_PUBLIC_TRAVEL_DATA_SOURCE=mock
 ```bash
 EXPO_PUBLIC_TRAVEL_DATA_SOURCE=api
 EXPO_PUBLIC_API_BASE_URL=http://localhost:8080/v1
+EXPO_PUBLIC_API_AUTH_MODE=guest
 ```
 
 4. Restart Expo after changing env values.
 
 Connected API contract endpoints:
 
+- `POST /auth/guest`
 - `GET /users/me`
 - `GET /cities`
 - `GET /spots`
 - `GET /trips`
 - `GET /trips/{tripId}`
 - `GET /achievements`
+- `GET /plans`
+- `GET /community/posts`
+- `POST /images/upload-url`
+- `POST /images/{imageId}/confirm`
+- `POST /trips`
 - `POST /check-ins`
+- `POST /plans/weekend-template`
+- `POST /cities/{cityId}/manual-light`
+- `DELETE /cities/{cityId}/manual-light`
+- `POST /wishlist/cities/{cityId}`
+- `DELETE /wishlist/cities/{cityId}`
+- `POST /wishlist/spots/{spotId}`
+- `DELETE /wishlist/spots/{spotId}`
 - `POST /ai-memories/generate`
 - `POST /ai-memories`
 
@@ -144,11 +158,8 @@ Not connected yet:
 - `GET /cities/{cityId}`
 - `GET /spots/{spotId}`
 - `GET /spots/nearby`
-- `POST /images/upload-url`
-- `POST /images/{imageId}/confirm`
-- `POST /trips`
 - `GET /ai-memories/{memoryId}`
-- Travel plan APIs are not in the Phase 4 contract yet, so plans remain local in API mode.
+- Phone/third-party login and token refresh endpoints are not implemented in the frontend yet.
 
 ## Phase 6 AI Memory Generation
 

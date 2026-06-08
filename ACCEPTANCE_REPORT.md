@@ -45,14 +45,14 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 ## Not Implemented
 
 - Real backend service implementation.
-- Real authentication and account lifecycle.
+- Real non-guest authentication and account lifecycle.
 - Real OpenAI or AI provider integration.
-- Real image upload, object storage, and backend image confirmation.
+- Real backend/object-storage implementation for image upload and confirmation.
 - Native map SDK integration with AMap / Gaode, Tencent Maps, Mapbox, or another provider.
 - Real POI provider search.
 - Real geofencing or continuous location monitoring.
-- Real trip creation API integration in API mode.
-- Travel plan backend API contract and persistence.
+- Token refresh and guest-to-account merge.
+- Backend implementation for trip creation, plans, wishlist, manual city light-up, community, and image upload endpoints.
 - Production iOS TestFlight upload.
 - Production Android internal testing upload.
 - Full end-to-end test automation on device.
@@ -66,7 +66,7 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 - EAS project has not been initialized with a committed `extra.eas.projectId`.
 - iOS bundle identifier and Android package name are not finalized in `app.json`.
 - Native permission copy is configured, but final strings still need real-device validation in a development build.
-- App is still primarily a mock-data MVP; real API mode depends on a compatible backend. New local-only mutations fall back to mock behavior in API mode until backend endpoints are connected.
+- App is still primarily a mock-data MVP; real API mode now calls backend endpoints for auth, trips, plans, wishlist, manual city light-up, community, image upload, check-ins, and AI, but still depends on a compatible backend implementation.
 
 ## Risks
 
