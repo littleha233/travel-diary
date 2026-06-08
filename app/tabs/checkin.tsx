@@ -705,11 +705,6 @@ const styles = StyleSheet.create({
     gap: theme.spacing.md,
     justifyContent: 'space-between',
   },
-  photoPreview: {
-    borderRadius: theme.radius.md,
-    height: 176,
-    overflow: 'hidden',
-  },
   photoGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -726,17 +721,6 @@ const styles = StyleSheet.create({
   photoImage: {
     height: '100%',
     width: '100%',
-  },
-  photoActions: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(17,20,39,0.42)',
-    bottom: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    left: 0,
-    padding: theme.spacing.sm,
-    position: 'absolute',
-    right: 0,
   },
   removePhoto: {
     alignItems: 'center',

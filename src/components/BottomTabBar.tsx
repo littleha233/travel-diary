@@ -33,8 +33,8 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
     <View style={styles.wrap}>
       {state.routes
         .filter((route) => route.name in icons)
-        .map((route, index) => {
-          const focused = state.index === index;
+        .map((route) => {
+          const focused = state.routes[state.index]?.name === route.name;
           const name = route.name as keyof typeof icons;
           const Icon = icons[name] ?? Map;
           const isCenter = name === 'checkin';

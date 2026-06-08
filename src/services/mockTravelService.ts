@@ -24,8 +24,6 @@ import {
   TravelDataService,
 } from './types';
 
-const defaultTripId = 'hangzhou-3-days';
-
 export function cloneInitialTravelData(): TravelData {
   return {
     user: { ...initialUser },
@@ -225,7 +223,10 @@ function createLocalCheckIn(
 
   const now = new Date().toISOString();
   const moodText = options.moodText?.trim() || `我点亮了 ${targetSpot.name}，新的旅行光点已经同步到地图。`;
-  const tripId = options.tripId ?? current.trips[0]?.id ?? defaultTripId;
+  const tripId = options.tripId ?? current.trips[0]?.id;
+  if (!tripId || !current.trips.some((trip) => trip.id === tripId)) {
+    throw new Error('请先创建旅行记录');
+  }
   const { photoUris, cachedPhotoUris, storedPhotoUris } = getPhotoUris(options);
   const checkIn: CheckInRecord = {
     id: `ci-${spotId}-${Date.now()}`,
