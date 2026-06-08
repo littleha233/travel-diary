@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { MapPin, Sparkles } from 'lucide-react-native';
+import { Heart, MapPin, Sparkles } from 'lucide-react-native';
 import {
   AppButton,
   AppCard,
@@ -18,11 +18,12 @@ import { theme } from '@/theme/theme';
 
 export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, trips } = useTravelStore(
+  const { cities, spots, trips, toggleWishlistSpot } = useTravelStore(
     useShallow((state) => ({
       cities: state.cities,
       spots: state.spots,
       trips: state.trips,
+      toggleWishlistSpot: state.toggleWishlistSpot,
     }))
   );
   const spot = spots.find((item) => item.id === id);
@@ -38,7 +39,8 @@ export default function SpotDetailScreen() {
 
   const city = cities.find((item) => item.id === spot.cityId);
   const isLit = spot.status === 'lit';
-  const primaryTrip = trips[0];
+  const primaryTrip = trips.find((trip) => trip.spotIds.includes(spot.id)) ?? trips[0];
+  const tripPhotos = primaryTrip?.photoUrls.slice(0, 3) ?? [];
 
   return (
     <Screen>
@@ -55,31 +57,41 @@ export default function SpotDetailScreen() {
           <StatusChip label={isLit ? '已点亮' : spot.canCheckIn ? '可点亮' : '想去'} tone={isLit ? 'gray' : 'mint'} />
         </View>
         <AppText variant="body">{spot.description}</AppText>
-        <AppButton
-          label={isLit ? '查看旅行记录' : '去打卡页点亮'}
-          icon={
-            isLit ? (
-              <Sparkles size={18} color={theme.colors.mapDarkAlt} />
-            ) : (
-              <MapPin size={18} color={theme.colors.mapDarkAlt} />
-            )
-          }
-          onPress={() => {
-            if (isLit) {
-              router.push(`/trip/${primaryTrip.id}`);
-              return;
+        <View style={styles.actions}>
+          <AppButton
+            label={isLit ? (primaryTrip ? '查看旅行记录' : '暂无旅行记录') : '去打卡页点亮'}
+            icon={
+              isLit ? (
+                <Sparkles size={18} color={theme.colors.mapDarkAlt} />
+              ) : (
+                <MapPin size={18} color={theme.colors.mapDarkAlt} />
+              )
             }
-            router.push('/tabs/checkin');
-          }}
-          fullWidth
-        />
+            onPress={() => {
+              if (isLit && primaryTrip) {
+                router.push(`/trip/${primaryTrip.id}`);
+                return;
+              }
+              router.push('/tabs/checkin');
+            }}
+            disabled={isLit && !primaryTrip}
+          />
+          {!isLit ? (
+            <AppButton
+              label={spot.status === 'wishlist' ? '移出心愿' : '加入心愿'}
+              variant="secondary"
+              icon={<Heart size={17} color={theme.colors.text} />}
+              onPress={() => toggleWishlistSpot(spot.id)}
+            />
+          ) : null}
+        </View>
       </AppCard>
       <SectionHeader title="用户照片" />
-      {isLit ? (
-        <PhotoGrid photos={primaryTrip.photoUrls.slice(0, 3)} />
+      {isLit && tripPhotos.length ? (
+        <PhotoGrid photos={tripPhotos} />
       ) : (
         <AppCard>
-          <AppText variant="body">点亮后可以在这里看到你的旅行照片。</AppText>
+          <AppText variant="body">{isLit ? '这次旅行暂无照片。' : '点亮后可以在这里看到你的旅行照片。'}</AppText>
         </AppCard>
       )}
       <SectionHeader title="相关主题" />
@@ -109,5 +121,10 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
   },
 });

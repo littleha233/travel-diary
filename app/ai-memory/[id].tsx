@@ -18,7 +18,7 @@ import { AIMemoryDraft } from '@/services/types';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
-const styleOptions = ['自然日记', '朋友圈分享', '诗意散文', '轻松幽默'];
+const styleOptions = ['自然日记', '朋友圈文案', '小红书风格', '文艺风格', '简洁总结'];
 
 export default function AIMemoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

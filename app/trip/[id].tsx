@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { BookOpen, Sparkles } from 'lucide-react-native';
+import { BookOpen, Share2, Sparkles } from 'lucide-react-native';
 import {
   AppButton,
   AppCard,
@@ -44,6 +44,12 @@ export default function TripDetailScreen() {
   const latestMemory =
     aiMemories.find((memory) => memory.id === trip.aiMemoryId) ??
     aiMemories.find((memory) => memory.tripId === trip.id);
+  const getCheckInTypeLabel = (type: (typeof checkIns)[number]['type']) => {
+    if (type === 'manual') {
+      return '手动补卡';
+    }
+    return type === 'mock-gps' ? 'Mock GPS' : 'GPS 打卡';
+  };
 
   return (
     <Screen>
@@ -58,6 +64,12 @@ export default function TripDetailScreen() {
           <Stat value={`${trip.spotIds.length}`} label="景点" />
           <Stat value={`${trip.photoCount ?? trip.photoUrls.length}`} label="照片" />
         </View>
+        <AppButton
+          label="生成分享卡片"
+          variant="secondary"
+          icon={<Share2 size={16} color={theme.colors.text} />}
+          onPress={() => router.push(`/share-card/${trip.id}`)}
+        />
       </AppCard>
       <SectionHeader title="已打卡景点" />
       {tripSpots.length ? (
@@ -75,7 +87,7 @@ export default function TripDetailScreen() {
           const spot = spots.find((item) => item.id === checkIn.spotId);
           return (
             <AppCard key={checkIn.id} style={styles.checkIn}>
-              <StatusChip label={checkIn.type === 'mock-gps' ? 'Mock GPS' : '手动补卡'} />
+              <StatusChip label={getCheckInTypeLabel(checkIn.type)} />
               <View style={styles.memoryText}>
                 <AppText variant="h3">{spot?.name ?? '未知景点'}</AppText>
                 <AppText variant="caption">

@@ -5,6 +5,7 @@ export type City = {
   name: string;
   province: string;
   lit: boolean;
+  manuallyLit?: boolean;
   wished?: boolean;
   visitedAt?: string;
   coordinates: GeoPoint;

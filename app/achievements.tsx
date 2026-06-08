@@ -1,6 +1,17 @@
+import { router } from 'expo-router';
+import { Share2 } from 'lucide-react-native';
 import { StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { AchievementBadge, AppCard, AppText, DetailHeader, ProgressBar, Screen, SectionHeader } from '@/components';
+import {
+  AchievementBadge,
+  AppButton,
+  AppCard,
+  AppText,
+  DetailHeader,
+  ProgressBar,
+  Screen,
+  SectionHeader,
+} from '@/components';
 import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 import { getProgressPercent } from '@/utils/travelStats';
@@ -19,6 +30,12 @@ export default function AchievementsScreen() {
       <AppCard style={styles.hero}>
         <AppText variant="title">Lv.12 城市漫游者</AppText>
         <AppText variant="body">已解锁 14 枚徽章，下一枚高光成就是「西湖收集家」。</AppText>
+        <AppButton
+          label="分享成就卡片"
+          variant="secondary"
+          icon={<Share2 size={16} color={theme.colors.text} />}
+          onPress={() => router.push('/share-card/achievement-west-lake')}
+        />
       </AppCard>
       <SectionHeader title="徽章墙" />
       <View style={styles.grid}>

@@ -4,10 +4,19 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { serviceConfig, TravelDataSource } from '@/services/config';
 import { cloneInitialTravelData, syncDerivedTravelData } from '@/services/mockTravelService';
 import { travelDataService } from '@/services/travelDataService';
-import { AIMemoryDraft, AIMemoryGenerationInput, LightUpSpotOptions, TravelData } from '@/services/types';
+import {
+  AIMemoryDraft,
+  AIMemoryGenerationInput,
+  CreateTripInput,
+  LightUpSpotOptions,
+  TravelData,
+} from '@/services/types';
 import { AIMemory } from '@/types/aiMemory';
 import { CheckInRecord } from '@/types/checkIn';
+import { City } from '@/types/city';
 import { TravelPlan } from '@/types/plan';
+import { Spot } from '@/types/spot';
+import { Trip } from '@/types/trip';
 
 type StoreStatus = 'loading' | 'ready' | 'error';
 
@@ -21,6 +30,10 @@ type TravelStoreState = TravelData & {
   setError: (message: string) => void;
   lightUpSpot: (spotId: string, options?: LightUpSpotOptions) => Promise<CheckInRecord | undefined>;
   createWeekendPlan: () => Promise<TravelPlan | undefined>;
+  createTrip: (input: CreateTripInput) => Promise<Trip | undefined>;
+  toggleCityManualLight: (cityId: string) => Promise<City | undefined>;
+  toggleWishlistCity: (cityId: string) => Promise<City | undefined>;
+  toggleWishlistSpot: (spotId: string) => Promise<Spot | undefined>;
   generateAIMemoryDraft: (input: AIMemoryGenerationInput) => Promise<AIMemoryDraft | undefined>;
   saveAIMemory: (draft: AIMemoryDraft) => Promise<AIMemory | undefined>;
   resetLocalProgress: () => Promise<void>;
@@ -39,6 +52,7 @@ function pickTravelData(state: TravelData): TravelData {
     checkIns: state.checkIns,
     aiMemories: state.aiMemories,
     achievements: state.achievements,
+    communityPosts: state.communityPosts,
   };
 }
 
@@ -124,6 +138,80 @@ export const useTravelStore = create<TravelStoreState>()(
           return undefined;
         }
       },
+      createTrip: async (input) => {
+        set({ status: 'loading', errorMessage: undefined });
+
+        try {
+          const result = await travelDataService.createTrip(input, pickTravelData(get()));
+          set({
+            ...result.data,
+            status: 'ready',
+            errorMessage: undefined,
+          });
+
+          return result.trip;
+        } catch (error) {
+          set({
+            status: 'ready',
+            errorMessage: getErrorMessage(error),
+          });
+          return undefined;
+        }
+      },
+      toggleCityManualLight: async (cityId) => {
+        try {
+          const result = await travelDataService.toggleCityManualLight(cityId, pickTravelData(get()));
+          set({
+            ...result.data,
+            status: 'ready',
+            errorMessage: undefined,
+          });
+
+          return result.city;
+        } catch (error) {
+          set({
+            status: 'ready',
+            errorMessage: getErrorMessage(error),
+          });
+          return undefined;
+        }
+      },
+      toggleWishlistCity: async (cityId) => {
+        try {
+          const result = await travelDataService.toggleWishlistCity(cityId, pickTravelData(get()));
+          set({
+            ...result.data,
+            status: 'ready',
+            errorMessage: undefined,
+          });
+
+          return result.city;
+        } catch (error) {
+          set({
+            status: 'ready',
+            errorMessage: getErrorMessage(error),
+          });
+          return undefined;
+        }
+      },
+      toggleWishlistSpot: async (spotId) => {
+        try {
+          const result = await travelDataService.toggleWishlistSpot(spotId, pickTravelData(get()));
+          set({
+            ...result.data,
+            status: 'ready',
+            errorMessage: undefined,
+          });
+
+          return result.spot;
+        } catch (error) {
+          set({
+            status: 'ready',
+            errorMessage: getErrorMessage(error),
+          });
+          return undefined;
+        }
+      },
       generateAIMemoryDraft: async (input) => {
         try {
           return await travelDataService.generateAIMemoryDraft(input, pickTravelData(get()));
@@ -177,6 +265,7 @@ export const useTravelStore = create<TravelStoreState>()(
         checkIns: state.checkIns,
         aiMemories: state.aiMemories,
         achievements: state.achievements,
+        communityPosts: state.communityPosts,
       }),
       onRehydrateStorage: () => (state, error) => {
         if (error) {

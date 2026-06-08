@@ -1,22 +1,20 @@
 import { Pressable, StyleSheet, View } from 'react-native';
-import { Compass, Map, MapPin, MessageCircle, User } from 'lucide-react-native';
+import { Home, Map, MapPin, User } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AppText } from './AppText';
 import { theme } from '@/theme/theme';
 
 const icons = {
-  home: Map,
-  plan: Compass,
+  home: Home,
+  map: Map,
   checkin: MapPin,
-  community: MessageCircle,
   profile: User,
 };
 
 const labels = {
   home: '首页',
-  plan: '计划',
+  map: '地图',
   checkin: '点亮',
-  community: '社区',
   profile: '我的',
 };
 
@@ -33,39 +31,41 @@ type BottomTabBarProps = {
 export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
   return (
     <View style={styles.wrap}>
-      {state.routes.map((route, index) => {
-        const focused = state.index === index;
-        const name = route.name as keyof typeof icons;
-        const Icon = icons[name] ?? Map;
-        const isCenter = name === 'checkin';
+      {state.routes
+        .filter((route) => route.name in icons)
+        .map((route, index) => {
+          const focused = state.index === index;
+          const name = route.name as keyof typeof icons;
+          const Icon = icons[name] ?? Map;
+          const isCenter = name === 'checkin';
 
-        return (
-          <Pressable
-            key={route.key}
-            accessibilityRole="button"
-            onPress={() => navigation.navigate(route.name)}
-            style={[styles.item, isCenter && styles.centerItem]}
-          >
-            {isCenter ? (
-              <LinearGradient
-                colors={[theme.colors.mintLight, theme.colors.mint, theme.colors.purple]}
-                style={styles.activate}
-              >
-                <Icon size={30} color={theme.colors.mapDarkAlt} />
-              </LinearGradient>
-            ) : (
-              <Icon size={22} color={focused ? theme.colors.mint : theme.colors.muted} />
-            )}
-            <AppText
-              variant="caption"
-              color={focused || isCenter ? theme.colors.mint : theme.colors.muted}
-              style={styles.label}
+          return (
+            <Pressable
+              key={route.key}
+              accessibilityRole="button"
+              onPress={() => navigation.navigate(route.name)}
+              style={[styles.item, isCenter && styles.centerItem]}
             >
-              {labels[name]}
-            </AppText>
-          </Pressable>
-        );
-      })}
+              {isCenter ? (
+                <LinearGradient
+                  colors={[theme.colors.mintLight, theme.colors.mint, theme.colors.purple]}
+                  style={styles.activate}
+                >
+                  <Icon size={30} color={theme.colors.mapDarkAlt} />
+                </LinearGradient>
+              ) : (
+                <Icon size={22} color={focused ? theme.colors.mint : theme.colors.muted} />
+              )}
+              <AppText
+                variant="caption"
+                color={focused || isCenter ? theme.colors.mint : theme.colors.muted}
+                style={styles.label}
+              >
+                {labels[name]}
+              </AppText>
+            </Pressable>
+          );
+        })}
     </View>
   );
 }

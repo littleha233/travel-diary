@@ -1,5 +1,7 @@
-import { Heart, MapPinned } from 'lucide-react-native';
-import { StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { Heart, MapPinned, X } from 'lucide-react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import {
   AppButton,
@@ -17,7 +19,7 @@ import { useTravelStore } from '@/store/travelStore';
 import { theme } from '@/theme/theme';
 
 export default function PlanScreen() {
-  const { status, errorMessage, cities, plans, quests, createWeekendPlan, retry } = useTravelStore(
+  const { status, errorMessage, cities, plans, quests, createWeekendPlan, retry, toggleWishlistCity } = useTravelStore(
     useShallow((state) => ({
       status: state.status,
       errorMessage: state.errorMessage,
@@ -26,10 +28,12 @@ export default function PlanScreen() {
       quests: state.quests,
       createWeekendPlan: state.createWeekendPlan,
       retry: state.retry,
+      toggleWishlistCity: state.toggleWishlistCity,
     }))
   );
+  const [manageWishlist, setManageWishlist] = useState(false);
   const plan = plans[0];
-  const wishlist = plan ? cities.filter((city) => plan.wishlistCityIds.includes(city.id)) : [];
+  const wishlist = cities.filter((city) => city.wished || plan?.wishlistCityIds.includes(city.id));
 
   if (status === 'loading') {
     return (
@@ -58,7 +62,7 @@ export default function PlanScreen() {
             Next Mission · 规划下一次点亮
           </AppText>
         </View>
-        <AppButton label="＋ 新计划" variant="secondary" onPress={createWeekendPlan} />
+        <AppButton label="＋ 新旅行" variant="secondary" onPress={() => router.push('/create-trip')} />
       </View>
       {plan ? (
         <PlanCard plan={plan} />
@@ -70,7 +74,12 @@ export default function PlanScreen() {
           onAction={createWeekendPlan}
         />
       )}
-      <SectionHeader title="心愿地图" action="管理" dark />
+      <SectionHeader
+        title="心愿地图"
+        action={manageWishlist ? '完成' : '管理'}
+        dark
+        onAction={() => setManageWishlist((value) => !value)}
+      />
       <AppCard variant="dark" style={styles.wishlist}>
         <MapPinned size={26} color={theme.colors.mint} />
         <View style={styles.wishlistText}>
@@ -78,11 +87,28 @@ export default function PlanScreen() {
             Wishlist Map
           </AppText>
           <AppText variant="caption" color="#C7C4EA">
-            {wishlist.map((city) => city.name).join(' · ')} · 中国五岳
+            {wishlist.length ? wishlist.map((city) => city.name).join(' · ') : '还没有心愿城市'}
           </AppText>
         </View>
         <Heart size={22} color={theme.colors.gold} />
       </AppCard>
+      {manageWishlist ? (
+        <View style={styles.wishlistList}>
+          {cities.slice(0, 10).map((city) => (
+            <Pressable key={city.id} style={styles.wishlistRow} onPress={() => toggleWishlistCity(city.id)}>
+              <View style={styles.wishlistText}>
+                <AppText variant="h3" color={theme.colors.white}>
+                  {city.name}
+                </AppText>
+                <AppText variant="caption" color="#C7C4EA">
+                  {city.province} · {city.wished ? '已加入心愿单' : '点击加入心愿单'}
+                </AppText>
+              </View>
+              {city.wished ? <X size={18} color={theme.colors.gold} /> : <Heart size={18} color={theme.colors.mint} />}
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
       <SectionHeader title="主题探索" action="全部" dark />
       {quests.length ? (
         <View style={styles.list}>
@@ -112,6 +138,20 @@ const styles = StyleSheet.create({
   wishlistText: {
     flex: 1,
     gap: theme.spacing.xs,
+  },
+  wishlistList: {
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md,
+  },
+  wishlistRow: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255,255,255,0.14)',
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    padding: theme.spacing.md,
   },
   list: {
     gap: theme.spacing.md,

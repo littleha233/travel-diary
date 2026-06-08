@@ -1,7 +1,7 @@
 # TravelAround Acceptance Report
 
-Date: 2026-06-07  
-Scope: Phase 1 to Phase 8 formal acceptance preparation  
+Date: 2026-06-08
+Scope: Phase 1 to Phase 8 formal acceptance preparation plus review remediation
 Repository: `git@github.com:littleha233/travel-diary.git`
 
 ## Current Completed Phases
@@ -20,11 +20,16 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 ## Implemented Features
 
 - Expo Router app shell with onboarding, login, bottom tabs, and detail routes.
-- Home travel map with custom mock map, city points, layer switching, and point navigation.
+- PRD-style home dashboard with data cards, recent trip, map summary, recommended task, and quick entries.
+- Dedicated map tab with custom mock map, city points, layer switching, search input, and point navigation.
 - City detail, spot detail, trip detail, plan detail, quest detail, achievements, community, profile, and settings screens.
 - Local mock data for user, cities, spots, trips, check-ins, AI memories, achievements, quests, plans, and community posts.
 - Zustand store with persisted local travel state.
-- Local check-in flow with GPS attempt, permission-denied fallback, manual check-in, optional photo selection, and local photo caching on native.
+- Local check-in flow with GPS attempt, permission-denied fallback, manual check-in, selected trip association, up to 9 photos, and local photo caching on native.
+- Local trip creation screen with title, city, date validation, and privacy selector.
+- Manual city light-up / cancel flow that preserves city lit state when lit spots still exist.
+- Wishlist city / spot management from city, spot, and plan screens.
+- Trip and achievement share-card skeleton with system share.
 - Derived state synchronization for lit spots, lit cities, trip summaries, user stats, and quest progress.
 - API contract covering user, city, spot, nearby spots, check-ins, trips, images, AI memories, achievements, and quests.
 - Switchable data source via `EXPO_PUBLIC_TRAVEL_DATA_SOURCE=mock|api`.
@@ -60,7 +65,7 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 - EAS project has not been initialized with a committed `extra.eas.projectId`.
 - iOS bundle identifier and Android package name are not finalized in `app.json`.
 - Native permission copy is configured, but final strings still need real-device validation in a development build.
-- App is still primarily a mock-data MVP; real API mode depends on a compatible backend.
+- App is still primarily a mock-data MVP; real API mode depends on a compatible backend. New local-only mutations fall back to mock behavior in API mode until backend endpoints are connected.
 
 ## Risks
 
@@ -74,10 +79,10 @@ Repository: `git@github.com:littleha233/travel-diary.git`
 
 ## Acceptance Recommendations
 
-1. Accept Phase 1 to Phase 8 as a feature-complete MVP prototype and internal-test baseline.
+1. Accept Phase 1 to Phase 8 plus review remediation as a feature-complete MVP prototype and internal-test baseline.
 2. Use mock mode for product walkthrough acceptance.
 3. Use API mode only with a backend that implements the Phase 5 and Phase 6 connected endpoints.
 4. Run the checks in `TEST_RESULT.md` before every merge.
 5. Complete one iOS and one Android development build before declaring native acceptance.
-6. Verify permission-denied, manual check-in, photo selection, AI retry, and map navigation on real devices.
+6. Verify permission-denied, manual check-in, multi-photo selection, AI retry, share card, and map navigation on real devices.
 7. Before production planning, decide backend stack, map SDK, AI provider, image storage, auth provider, and compliance requirements.

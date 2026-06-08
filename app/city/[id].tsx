@@ -1,7 +1,9 @@
 import { useLocalSearchParams } from 'expo-router';
 import { Image, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
+import { Heart, Sparkles } from 'lucide-react-native';
 import {
+  AppButton,
   AppCard,
   AppText,
   DetailHeader,
@@ -18,12 +20,14 @@ import { theme } from '@/theme/theme';
 
 export default function CityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { cities, spots, quests, trips } = useTravelStore(
+  const { cities, spots, quests, trips, toggleCityManualLight, toggleWishlistCity } = useTravelStore(
     useShallow((state) => ({
       cities: state.cities,
       spots: state.spots,
       quests: state.quests,
       trips: state.trips,
+      toggleCityManualLight: state.toggleCityManualLight,
+      toggleWishlistCity: state.toggleWishlistCity,
     }))
   );
   const city = cities.find((item) => item.id === id);
@@ -54,12 +58,28 @@ export default function CityDetailScreen() {
             <AppText variant="h2">{city.name}</AppText>
             <AppText variant="caption">{city.description}</AppText>
           </View>
-          <StatusChip label={city.lit ? '已点亮' : '点亮城市'} tone={city.lit ? 'mint' : 'gray'} />
+          <StatusChip
+            label={city.lit ? (city.manuallyLit ? '手动点亮' : '已点亮') : city.wished ? '心愿中' : '未点亮'}
+            tone={city.lit ? 'mint' : city.wished ? 'gold' : 'gray'}
+          />
         </View>
         <View style={styles.stats}>
           <Stat value={`${litCount}/${citySpots.length || city.spotIds.length}`} label="景点进度" />
           <Stat value={city.visitedAt ? '1' : '0'} label="旅行次数" />
           <Stat value={`${cityPhotoCount}`} label="照片" />
+        </View>
+        <View style={styles.actions}>
+          <AppButton
+            label={city.manuallyLit ? '取消手动点亮' : city.lit ? '标记为手动点亮' : '点亮城市'}
+            icon={<Sparkles size={17} color={theme.colors.mapDarkAlt} />}
+            onPress={() => toggleCityManualLight(city.id)}
+          />
+          <AppButton
+            label={city.wished ? '移出心愿单' : '加入心愿单'}
+            variant="secondary"
+            icon={<Heart size={17} color={theme.colors.text} />}
+            onPress={() => toggleWishlistCity(city.id)}
+          />
         </View>
       </AppCard>
       <SectionHeader title="城市点位地图" />
@@ -120,6 +140,11 @@ const styles = StyleSheet.create({
   },
   stats: {
     flexDirection: 'row',
+    gap: theme.spacing.md,
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: theme.spacing.md,
   },
   stat: {

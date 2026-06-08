@@ -10,6 +10,8 @@ export type CheckInRecord = {
   type: 'mock-gps' | 'gps' | 'manual';
   photoUri?: string;
   cachedPhotoUri?: string;
+  photoUris?: string[];
+  cachedPhotoUris?: string[];
   location?: GeoPoint;
   distanceMeters?: number;
 };

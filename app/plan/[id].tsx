@@ -1,4 +1,4 @@
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -17,8 +17,9 @@ import { theme } from '@/theme/theme';
 
 export default function PlanDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { plans, spots } = useTravelStore(
+  const { cities, plans, spots } = useTravelStore(
     useShallow((state) => ({
+      cities: state.cities,
       plans: state.plans,
       spots: state.spots,
     }))
@@ -35,6 +36,8 @@ export default function PlanDetailScreen() {
   }
 
   const planSpots = spots.filter((spot) => plan.spotIds.includes(spot.id));
+  const planCities = cities.filter((city) => plan.cityIds.includes(city.id));
+  const summaryCity = planCities.map((city) => city.name).join('、') || '目的城市';
 
   return (
     <Screen dark>
@@ -45,9 +48,9 @@ export default function PlanDetailScreen() {
           计划摘要
         </AppText>
         <AppText variant="body" color="#D8D4F4">
-          {plan.days} 天，围绕杭州西湖区安排 {plan.total} 个探索节点，当前已完成 {plan.progress} 个。
+          {plan.days} 天，围绕 {summaryCity} 安排 {plan.total} 个探索节点，当前已完成 {plan.progress} 个。
         </AppText>
-        <AppButton label="继续计划" fullWidth />
+        <AppButton label="继续计划" fullWidth onPress={() => router.push('/tabs/checkin')} />
       </AppCard>
       <SectionHeader title="待点亮景点" dark />
       <View style={styles.list}>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { Image, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -112,23 +113,26 @@ function createLocatedSpots(spots: Spot[], currentLocation: GeoPoint | null): Lo
 }
 
 export default function CheckInScreen() {
-  const { status, errorMessage, cities, spots, lightUpSpot, retry } = useTravelStore(
+  const { status, errorMessage, cities, spots, trips, lightUpSpot, retry } = useTravelStore(
     useShallow((state) => ({
       status: state.status,
       errorMessage: state.errorMessage,
       cities: state.cities,
       spots: state.spots,
+      trips: state.trips,
       lightUpSpot: state.lightUpSpot,
       retry: state.retry,
     }))
   );
+  const availableTrips = trips ?? [];
   const [currentLocation, setCurrentLocation] = useState<GeoPoint | null>(null);
   const [locationStatus, setLocationStatus] = useState<CapabilityStatus>('idle');
   const [locationMessage, setLocationMessage] = useState('点击定位后，TravelAround 会请求一次前台定位权限。');
   const [photoStatus, setPhotoStatus] = useState<CapabilityStatus>('idle');
   const [photoMessage, setPhotoMessage] = useState('照片可选；跳过后也能完成纯文字打卡。');
   const [selectedSpot, setSelectedSpot] = useState<LocatedSpot | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<SelectedPhoto | null>(null);
+  const [selectedPhotos, setSelectedPhotos] = useState<SelectedPhoto[]>([]);
+  const [selectedTripId, setSelectedTripId] = useState(availableTrips[0]?.id ?? '');
   const [note, setNote] = useState('');
   const [isPickingPhoto, setIsPickingPhoto] = useState(false);
   const [previewPhotoUri, setPreviewPhotoUri] = useState<string | null>(null);
@@ -199,7 +203,8 @@ export default function CheckInScreen() {
 
   const openCheckInModal = (spot: LocatedSpot) => {
     setSelectedSpot(spot);
-    setSelectedPhoto(null);
+    setSelectedPhotos([]);
+    setSelectedTripId(availableTrips[0]?.id ?? '');
     setNote('');
     setPhotoStatus('idle');
     setPhotoMessage('照片可选；跳过后也能完成纯文字打卡。');
@@ -226,10 +231,12 @@ export default function CheckInScreen() {
       setPhotoMessage(
         permission.accessPrivileges === 'limited'
           ? '当前只能访问部分照片，仍可选择已授权的图片。'
-          : '相册权限已允许，可以选择一张旅行照片。'
+          : '相册权限已允许，最多可选择 9 张旅行照片。'
       );
 
       const result = await ImagePicker.launchImageLibraryAsync({
+        allowsMultipleSelection: true,
+        selectionLimit: 9 - selectedPhotos.length,
         allowsEditing: false,
         mediaTypes: ['images'],
         quality: 0.85,
@@ -240,15 +247,20 @@ export default function CheckInScreen() {
         return;
       }
 
-      const asset = result.assets[0];
-      const cachedUri = await cachePickedPhoto(asset).catch(() => undefined);
-      setSelectedPhoto({
-        uri: asset.uri,
-        cachedUri,
-        fileName: asset.fileName ?? undefined,
-      });
+      const nextPhotos = await Promise.all(
+        result.assets.slice(0, 9 - selectedPhotos.length).map(async (asset) => {
+          const cachedUri = await cachePickedPhoto(asset).catch(() => undefined);
+
+          return {
+            uri: asset.uri,
+            cachedUri,
+            fileName: asset.fileName ?? undefined,
+          };
+        })
+      );
+      setSelectedPhotos((current) => [...current, ...nextPhotos].slice(0, 9));
       setPhotoMessage(
-        cachedUri && cachedUri !== asset.uri
+        nextPhotos.some((photo) => photo.cachedUri && photo.cachedUri !== photo.uri)
           ? '照片已缓存到本地沙盒，打卡时会记录缓存路径。'
           : '照片已选择，可预览或移除。'
       );
@@ -269,8 +281,11 @@ export default function CheckInScreen() {
     const checkIn = await lightUpSpot(selectedSpot.id, {
       type: checkInType,
       moodText: note,
-      photoUri: selectedPhoto?.uri,
-      cachedPhotoUri: selectedPhoto?.cachedUri,
+      tripId: selectedTripId || undefined,
+      photoUri: selectedPhotos[0]?.uri,
+      cachedPhotoUri: selectedPhotos[0]?.cachedUri,
+      photoUris: selectedPhotos.map((photo) => photo.uri),
+      cachedPhotoUris: selectedPhotos.map((photo) => photo.cachedUri ?? photo.uri),
       location: currentLocation ?? undefined,
       distanceMeters: selectedSpot.computedDistanceMeters,
     });
@@ -452,36 +467,81 @@ export default function CheckInScreen() {
             <View style={styles.photoBox}>
               <View style={styles.photoBoxHeader}>
                 <View>
+                  <AppText variant="h3">关联旅行</AppText>
+                  <AppText variant="caption">
+                    {availableTrips.length ? '本次打卡会写入选中的旅行记录。' : '请先创建旅行记录再关联打卡。'}
+                  </AppText>
+                </View>
+                <StatusChip label={selectedTripId ? '已选择' : '未选择'} tone={selectedTripId ? 'mint' : 'gold'} />
+              </View>
+              {availableTrips.length ? (
+                <View style={styles.tripOptions}>
+                  {availableTrips.slice(0, 4).map((trip) => {
+                    const selected = trip.id === selectedTripId;
+                    return (
+                      <Pressable
+                        key={trip.id}
+                        onPress={() => setSelectedTripId(trip.id)}
+                        style={[styles.tripOption, selected && styles.tripOptionActive]}
+                      >
+                        <AppText variant="caption" color={selected ? theme.colors.mapDarkAlt : theme.colors.text}>
+                          {trip.title}
+                        </AppText>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <AppButton
+                  label="创建旅行记录"
+                  variant="secondary"
+                  fullWidth
+                  onPress={() => {
+                    setSelectedSpot(null);
+                    router.push('/create-trip');
+                  }}
+                />
+              )}
+            </View>
+
+            <View style={styles.photoBox}>
+              <View style={styles.photoBoxHeader}>
+                <View>
                   <AppText variant="h3">打卡照片</AppText>
                   <AppText variant="caption">{photoMessage}</AppText>
                 </View>
                 <StatusChip
-                  label={photoStatus === 'denied' ? '已跳过' : selectedPhoto ? '已选择' : '可选'}
-                  tone={selectedPhoto ? 'mint' : 'gray'}
+                  label={
+                    photoStatus === 'denied' ? '已跳过' : selectedPhotos.length ? `${selectedPhotos.length}/9` : '可选'
+                  }
+                  tone={selectedPhotos.length ? 'mint' : 'gray'}
                 />
               </View>
-              {selectedPhoto ? (
-                <Pressable
-                  onPress={() => setPreviewPhotoUri(selectedPhoto.cachedUri ?? selectedPhoto.uri)}
-                  style={styles.photoPreview}
-                >
-                  <Image source={{ uri: selectedPhoto.cachedUri ?? selectedPhoto.uri }} style={styles.photoImage} />
-                  <View style={styles.photoActions}>
-                    <AppText variant="caption" color={theme.colors.white}>
-                      点击预览
-                    </AppText>
-                    <Pressable onPress={() => setSelectedPhoto(null)} style={styles.removePhoto}>
-                      <X size={16} color={theme.colors.white} />
+              {selectedPhotos.length ? (
+                <View style={styles.photoGrid}>
+                  {selectedPhotos.map((photo) => (
+                    <Pressable
+                      key={photo.cachedUri ?? photo.uri}
+                      onPress={() => setPreviewPhotoUri(photo.cachedUri ?? photo.uri)}
+                      style={styles.photoTile}
+                    >
+                      <Image source={{ uri: photo.cachedUri ?? photo.uri }} style={styles.photoImage} />
+                      <Pressable
+                        onPress={() => setSelectedPhotos((current) => current.filter((item) => item.uri !== photo.uri))}
+                        style={styles.removePhoto}
+                      >
+                        <X size={15} color={theme.colors.white} />
+                      </Pressable>
                     </Pressable>
-                  </View>
-                </Pressable>
+                  ))}
+                </View>
               ) : null}
               <AppButton
-                label={selectedPhoto ? '更换照片' : '选择照片'}
+                label={selectedPhotos.length ? '继续添加照片' : '选择照片'}
                 variant="secondary"
                 icon={<ImagePlus size={17} color={theme.colors.text} />}
                 onPress={pickPhoto}
-                disabled={isPickingPhoto}
+                disabled={isPickingPhoto || selectedPhotos.length >= 9}
                 fullWidth
               />
             </View>
@@ -491,6 +551,7 @@ export default function CheckInScreen() {
               icon={<Sparkles size={18} color={theme.colors.mapDarkAlt} />}
               fullWidth
               onPress={confirmCheckIn}
+              disabled={!selectedTripId}
             />
             <AppButton label="稍后再说" variant="ghost" fullWidth onPress={() => setSelectedSpot(null)} />
           </AppCard>
@@ -649,6 +710,19 @@ const styles = StyleSheet.create({
     height: 176,
     overflow: 'hidden',
   },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  photoTile: {
+    aspectRatio: 1,
+    borderRadius: theme.radius.md,
+    flexBasis: '30%',
+    flexGrow: 1,
+    maxWidth: '32%',
+    overflow: 'hidden',
+  },
   photoImage: {
     height: '100%',
     width: '100%',
@@ -670,7 +744,26 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.pill,
     height: 30,
     justifyContent: 'center',
+    position: 'absolute',
+    right: theme.spacing.xs,
+    top: theme.spacing.xs,
     width: 30,
+  },
+  tripOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: theme.spacing.sm,
+  },
+  tripOption: {
+    borderColor: theme.colors.line,
+    borderRadius: theme.radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  tripOptionActive: {
+    backgroundColor: theme.colors.mint,
+    borderColor: theme.colors.mint,
   },
   previewBackdrop: {
     alignItems: 'center',

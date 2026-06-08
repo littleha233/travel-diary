@@ -12,6 +12,7 @@ import {
   AIMemoryDraft,
   AIMemoryGenerationInput,
   CheckInMutationResult,
+  CreateTripInput,
   LightUpSpotOptions,
   TravelData,
   TravelDataService,
@@ -94,6 +95,7 @@ async function loadInitialData(): Promise<TravelData> {
     checkIns: tripDetails.checkIns,
     aiMemories: tripDetails.aiMemories,
     achievements: achievementData.achievements,
+    communityPosts: fallback.communityPosts,
   });
 }
 
@@ -104,7 +106,7 @@ async function createCheckIn(
 ): Promise<CheckInMutationResult> {
   const response = await apiClient.post<CheckInResponse>('/check-ins', {
     spotId,
-    tripId: current.trips[0]?.id,
+    tripId: options.tripId ?? current.trips[0]?.id,
     type: options.type === 'gps' ? 'gps' : 'manual',
     moodText: options.moodText,
     location: options.location,
@@ -117,6 +119,10 @@ async function createCheckIn(
     checkIn: response.checkIn,
     data,
   };
+}
+
+async function createTrip(input: CreateTripInput, current: TravelData) {
+  return mockTravelService.createTrip(input, current);
 }
 
 function isTransientApiError(error: unknown) {
@@ -191,6 +197,10 @@ export const realApiService: TravelDataService = {
   loadInitialData,
   createCheckIn,
   createWeekendPlan: async (current) => mockTravelService.createWeekendPlan(current),
+  createTrip,
+  toggleCityManualLight: async (cityId, current) => mockTravelService.toggleCityManualLight(cityId, current),
+  toggleWishlistCity: async (cityId, current) => mockTravelService.toggleWishlistCity(cityId, current),
+  toggleWishlistSpot: async (spotId, current) => mockTravelService.toggleWishlistSpot(spotId, current),
   generateAIMemoryDraft,
   saveAIMemory,
 };
