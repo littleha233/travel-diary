@@ -24,6 +24,7 @@ public class TravelStore {
     private final Map<String, Map<String, Object>> aiMemories = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> images = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> plans = new LinkedHashMap<>();
+    private final Map<String, String> checkInRequests = new LinkedHashMap<>();
     private final List<Map<String, Object>> achievements = new ArrayList<>();
     private final List<Map<String, Object>> quests = new ArrayList<>();
     private final List<Map<String, Object>> communityPosts = new ArrayList<>();
@@ -126,33 +127,39 @@ public class TravelStore {
         return result;
     }
 
-    public synchronized List<Map<String, Object>> listTrips() {
-        return trips.values().stream().map(this::copy).toList();
+    public synchronized List<Map<String, Object>> listTrips(String userId) {
+        return trips.values().stream()
+            .filter(trip -> userId.equals(trip.get("userId")))
+            .map(this::copy)
+            .toList();
     }
 
-    public synchronized Map<String, Object> trip(String tripId) {
+    public synchronized Map<String, Object> trip(String userId, String tripId) {
         Map<String, Object> trip = trips.get(tripId);
         if (trip == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.TRIP_NOT_FOUND, "Trip not found.", map("tripId", tripId));
+        }
+        if (!userId.equals(trip.get("userId"))) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.TRIP_NOT_FOUND, "Trip not found.", map("tripId", tripId));
         }
         return copy(trip);
     }
 
-    public synchronized Map<String, Object> tripDetail(String tripId) {
-        Map<String, Object> trip = trip(tripId);
+    public synchronized Map<String, Object> tripDetail(String userId, String tripId) {
+        Map<String, Object> trip = trip(userId, tripId);
         List<Map<String, Object>> tripCheckIns = checkIns.values().stream()
-            .filter(item -> tripId.equals(item.get("tripId")))
+            .filter(item -> tripId.equals(item.get("tripId")) && userId.equals(item.get("userId")))
             .map(this::copy)
             .toList();
         Map<String, Object> memory = aiMemories.values().stream()
-            .filter(item -> tripId.equals(item.get("tripId")))
+            .filter(item -> tripId.equals(item.get("tripId")) && userId.equals(item.get("userId")))
             .findFirst()
             .map(this::copy)
             .orElse(null);
         return map("trip", trip, "checkIns", tripCheckIns, "aiMemory", memory);
     }
 
-    public synchronized Map<String, Object> createTrip(String title, String cityId, String startDate, String endDate, String visibility) {
+    public synchronized Map<String, Object> createTrip(String userId, String title, String cityId, String startDate, String endDate, String visibility) {
         city(cityId);
         long days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1;
         if (days <= 0) {
@@ -161,6 +168,7 @@ public class TravelStore {
         String id = slug(cityId + "-" + title + "-" + System.currentTimeMillis());
         Map<String, Object> trip = map(
             "id", id,
+            "userId", userId,
             "title", title,
             "cityIds", list(cityId),
             "startDate", startDate,
@@ -180,12 +188,20 @@ public class TravelStore {
         return map("trip", copy(trip));
     }
 
-    public synchronized Map<String, Object> createCheckIn(String spotId, String tripId, String type, String moodText, Map<String, Object> location, List<String> photoIds) {
+    public synchronized Map<String, Object> createCheckIn(String userId, String spotId, String tripId, String type, String moodText, Map<String, Object> location, List<String> photoIds, String visitedAt, String clientRequestId) {
+        String idempotencyKey = clientRequestId == null || clientRequestId.isBlank() ? null : userId + ":" + clientRequestId;
+        if (idempotencyKey != null && checkInRequests.containsKey(idempotencyKey)) {
+            Map<String, Object> existing = checkIns.get(checkInRequests.get(idempotencyKey));
+            if (existing != null) {
+                return checkInMutationResult(existing, new ArrayList<>());
+            }
+        }
+
         Map<String, Object> spot = spots.get(spotId);
         if (spot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
         }
-        if (tripId != null && !trips.containsKey(tripId)) {
+        if (tripId != null && (!trips.containsKey(tripId) || !userId.equals(trips.get(tripId).get("userId")))) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.TRIP_NOT_FOUND, "Trip not found.", map("tripId", tripId));
         }
         double distance = 0;
@@ -203,12 +219,12 @@ public class TravelStore {
         String id = "ci-" + spotId + "-" + System.currentTimeMillis();
         Map<String, Object> checkIn = map(
             "id", id,
-            "userId", "u-nicola",
+            "userId", userId,
             "cityId", cityId,
             "spotId", spotId,
             "tripId", tripId,
             "createdAt", Instant.now().toString(),
-            "visitedAt", Instant.now().toString(),
+            "visitedAt", visitedAt == null || visitedAt.isBlank() ? Instant.now().toString() : visitedAt,
             "moodText", moodText == null ? "" : moodText,
             "type", type == null ? "manual" : type,
             "location", location,
@@ -216,6 +232,9 @@ public class TravelStore {
             "photoIds", photoIds == null ? new ArrayList<>() : new ArrayList<>(photoIds)
         );
         checkIns.put(id, checkIn);
+        if (idempotencyKey != null) {
+            checkInRequests.put(idempotencyKey, id);
+        }
 
         spot.put("status", "lit");
         spot.put("canCheckIn", false);
@@ -227,10 +246,12 @@ public class TravelStore {
             Map<String, Object> trip = trips.get(tripId);
             appendUnique(trip, "spotIds", spotId);
             appendUnique(trip, "checkInIds", id);
+            trip.put("photoCount", ((Number) trip.getOrDefault("photoCount", 0)).intValue() + (photoIds == null ? 0 : photoIds.size()));
             trip.put("updatedAt", Instant.now().toString());
             updateTripSummary(trip);
         }
-        return map("checkIn", copy(checkIn));
+        List<Map<String, Object>> unlockedAchievements = refreshAchievementProgress();
+        return checkInMutationResult(checkIn, unlockedAchievements);
     }
 
     public synchronized Map<String, Object> manualLight(String cityId, boolean lit) {
@@ -332,8 +353,8 @@ public class TravelStore {
         return copy(image);
     }
 
-    public synchronized Map<String, Object> generateMemory(String tripId, String style, String extraPrompt, String model) {
-        Map<String, Object> trip = trip(tripId);
+    public synchronized Map<String, Object> generateMemory(String userId, String tripId, String style, String extraPrompt, String model) {
+        Map<String, Object> trip = trip(userId, tripId);
         if (stringList(trip.get("spotIds")).isEmpty()) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.AI_MEMORY_NOT_READY, "Trip needs at least one spot.");
         }
@@ -353,11 +374,12 @@ public class TravelStore {
         );
     }
 
-    public synchronized Map<String, Object> saveMemory(String tripId, String title, String content, String summary, String shareText, String style) {
-        trip(tripId);
+    public synchronized Map<String, Object> saveMemory(String userId, String tripId, String title, String content, String summary, String shareText, String style) {
+        trip(userId, tripId);
         String id = "memory-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         Map<String, Object> memory = map(
             "id", id,
+            "userId", userId,
             "tripId", tripId,
             "title", title,
             "summary", summary,
@@ -469,6 +491,7 @@ public class TravelStore {
 
         trips.put("hangzhou-3-days", map(
             "id", "hangzhou-3-days",
+            "userId", "u-nicola",
             "title", "杭州 3 日游",
             "cityIds", list("hangzhou"),
             "startDate", "2026-05-01",
@@ -490,10 +513,11 @@ public class TravelStore {
             "createdAt", "2026-05-03T12:00:00.000Z",
             "updatedAt", "2026-06-06T14:00:00.000Z"
         ));
-        checkIns.put("ci-west-lake", map("id", "ci-west-lake", "cityId", "hangzhou", "spotId", "west-lake", "tripId", "hangzhou-3-days", "createdAt", "2026-05-01T09:20:00.000Z", "moodText", "清晨的西湖很安静，像一张慢慢亮起来的地图。", "type", "mock-gps"));
-        checkIns.put("ci-leifeng-pagoda", map("id", "ci-leifeng-pagoda", "cityId", "hangzhou", "spotId", "leifeng-pagoda", "tripId", "hangzhou-3-days", "createdAt", "2026-05-02T17:48:00.000Z", "moodText", "黄昏的塔影很适合被收进旅行回忆。", "type", "mock-gps"));
+        checkIns.put("ci-west-lake", map("id", "ci-west-lake", "userId", "u-nicola", "cityId", "hangzhou", "spotId", "west-lake", "tripId", "hangzhou-3-days", "createdAt", "2026-05-01T09:20:00.000Z", "moodText", "清晨的西湖很安静，像一张慢慢亮起来的地图。", "type", "mock-gps"));
+        checkIns.put("ci-leifeng-pagoda", map("id", "ci-leifeng-pagoda", "userId", "u-nicola", "cityId", "hangzhou", "spotId", "leifeng-pagoda", "tripId", "hangzhou-3-days", "createdAt", "2026-05-02T17:48:00.000Z", "moodText", "黄昏的塔影很适合被收进旅行回忆。", "type", "mock-gps"));
         aiMemories.put("memory-hangzhou", map(
             "id", "memory-hangzhou",
+            "userId", "u-nicola",
             "tripId", "hangzhou-3-days",
             "title", "在杭州，把时间走慢",
             "summary", "3 天，1 座城市，7 个景点，36 张照片。",
@@ -566,6 +590,51 @@ public class TravelStore {
         long tripCount = trips.values().stream().filter(trip -> stringList(trip.get("cityIds")).contains(city.get("id"))).count();
         result.put("stats", map("litSpotCount", litSpotCount, "totalSpotCount", totalSpotCount, "tripCount", tripCount, "photoCount", 0));
         return result;
+    }
+
+    private Map<String, Object> checkInMutationResult(Map<String, Object> checkIn, List<Map<String, Object>> unlockedAchievements) {
+        String spotId = String.valueOf(checkIn.get("spotId"));
+        String cityId = String.valueOf(checkIn.get("cityId"));
+        Object tripId = checkIn.get("tripId");
+
+        Map<String, Object> result = map(
+            "checkIn", copy(checkIn),
+            "spot", enrichSpot(spots.get(spotId)),
+            "city", enrichCity(cities.get(cityId)),
+            "unlockedAchievements", unlockedAchievements
+        );
+        if (tripId != null && trips.containsKey(String.valueOf(tripId))) {
+            result.put("trip", copy(trips.get(String.valueOf(tripId))));
+        }
+        return result;
+    }
+
+    private List<Map<String, Object>> refreshAchievementProgress() {
+        List<Map<String, Object>> unlocked = new ArrayList<>();
+        for (Map<String, Object> quest : quests) {
+            List<String> questSpotIds = stringList(quest.get("spotIds"));
+            if (questSpotIds.isEmpty()) {
+                continue;
+            }
+            long progress = questSpotIds.stream().filter(spotId -> {
+                Map<String, Object> spot = spots.get(spotId);
+                return spot != null && "lit".equals(spot.get("status"));
+            }).count();
+            quest.put("progress", progress);
+            quest.put("subtitle", progress + " / " + quest.get("total") + " 已点亮");
+            if (progress >= ((Number) quest.get("total")).longValue()) {
+                String achievementId = String.valueOf(quest.get("rewardAchievementId"));
+                achievements.stream()
+                    .filter(item -> achievementId.equals(item.get("id")) && !Boolean.TRUE.equals(item.get("unlocked")))
+                    .findFirst()
+                    .ifPresent(item -> {
+                        item.put("unlocked", true);
+                        item.put("unlockedAt", LocalDate.now().toString());
+                        unlocked.add(copy(item));
+                    });
+            }
+        }
+        return unlocked;
     }
 
     private Map<String, Object> enrichSpot(Map<String, Object> spot) {

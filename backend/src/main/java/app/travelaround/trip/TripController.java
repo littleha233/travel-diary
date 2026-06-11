@@ -1,5 +1,6 @@
 package app.travelaround.trip;
 
+import app.travelaround.common.security.CurrentUser;
 import app.travelaround.common.web.ApiResponse;
 import app.travelaround.core.TravelStore;
 import jakarta.validation.Valid;
@@ -28,7 +29,7 @@ public class TripController {
         @RequestParam(required = false, defaultValue = "1") int page,
         @RequestParam(required = false, defaultValue = "100") int pageSize
     ) {
-        List<Map<String, Object>> items = store.listTrips();
+        List<Map<String, Object>> items = store.listTrips(CurrentUser.id());
         int from = Math.min((Math.max(page, 1) - 1) * Math.max(pageSize, 1), items.size());
         int to = Math.min(from + Math.min(Math.max(pageSize, 1), 100), items.size());
         return ApiResponse.page(items.subList(from, to), page, pageSize, items.size());
@@ -36,12 +37,12 @@ public class TripController {
 
     @GetMapping("/{tripId}")
     ApiResponse<Map<String, Object>> trip(@PathVariable String tripId) {
-        return ApiResponse.ok(store.tripDetail(tripId));
+        return ApiResponse.ok(store.tripDetail(CurrentUser.id(), tripId));
     }
 
     @PostMapping
     ApiResponse<Map<String, Object>> createTrip(@Valid @RequestBody CreateTripRequest request) {
-        return ApiResponse.ok(store.createTrip(request.title(), request.cityId(), request.startDate(), request.endDate(), request.visibility()));
+        return ApiResponse.ok(store.createTrip(CurrentUser.id(), request.title(), request.cityId(), request.startDate(), request.endDate(), request.visibility()));
     }
 
     record CreateTripRequest(@NotBlank String title, @NotBlank String cityId, @NotBlank String startDate, @NotBlank String endDate, String visibility) {

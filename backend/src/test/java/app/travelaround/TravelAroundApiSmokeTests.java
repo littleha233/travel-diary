@@ -42,11 +42,40 @@ class TravelAroundApiSmokeTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.length()").value(18));
 
+        mockMvc.perform(get("/v1/trips/hangzhou-3-days").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.checkIns.length()").value(2));
+
         mockMvc.perform(post("/v1/check-ins")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"spotId\":\"broken-bridge\",\"tripId\":\"hangzhou-3-days\",\"type\":\"manual\",\"moodText\":\"smoke\"}"))
+                .content("{\"spotId\":\"broken-bridge\",\"tripId\":\"hangzhou-3-days\",\"type\":\"manual\",\"moodText\":\"smoke\",\"clientRequestId\":\"smoke-check-in\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.data.checkIn.spotId").value("broken-bridge"));
+            .andExpect(jsonPath("$.data.checkIn.spotId").value("broken-bridge"))
+            .andExpect(jsonPath("$.data.checkIn.userId").value("u-nicola"))
+            .andExpect(jsonPath("$.data.spot.status").value("lit"))
+            .andExpect(jsonPath("$.data.city.lit").value(true))
+            .andExpect(jsonPath("$.data.trip.id").value("hangzhou-3-days"));
+
+        mockMvc.perform(post("/v1/check-ins")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"spotId\":\"broken-bridge\",\"tripId\":\"hangzhou-3-days\",\"type\":\"manual\",\"moodText\":\"same\",\"clientRequestId\":\"smoke-check-in\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.checkIn.moodText").value("smoke"));
+
+        mockMvc.perform(post("/v1/check-ins")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"spotId\":\"lingyin-temple\",\"tripId\":\"hangzhou-3-days\",\"type\":\"gps\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("LOCATION_REQUIRED"));
+
+        mockMvc.perform(post("/v1/check-ins")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"spotId\":\"lingyin-temple\",\"tripId\":\"hangzhou-3-days\",\"type\":\"gps\",\"location\":{\"latitude\":31.2304,\"longitude\":121.4737}}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.error.code").value("CHECK_IN_OUT_OF_RANGE"));
     }
 }

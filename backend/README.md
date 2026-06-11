@@ -11,6 +11,14 @@ cd backend
 
 The default profile uses an in-memory H2 database so the API can run without Docker.
 
+## Current Backend Scope
+
+- Phase 1 is implemented: Spring Boot scaffold, JWT auth, API envelope, seed data, and read APIs.
+- Phase 2 is implemented for the runtime service: trip creation, check-in creation, GPS radius validation, nearby spots, check-in idempotency via `clientRequestId`, and derived city/spot/trip update responses.
+- Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
+
+The service still uses the in-memory `TravelStore` for request handling. Switching runtime reads/writes to MyBatis-Plus mappers is the next persistence step.
+
 ## Docker Compose
 
 ```bash

@@ -1,5 +1,6 @@
 package app.travelaround.checkin;
 
+import app.travelaround.common.security.CurrentUser;
 import app.travelaround.common.web.ApiResponse;
 import app.travelaround.core.TravelStore;
 import jakarta.validation.Valid;
@@ -24,12 +25,15 @@ public class CheckInController {
     @PostMapping
     ApiResponse<Map<String, Object>> create(@Valid @RequestBody CreateCheckInRequest request) {
         return ApiResponse.ok(store.createCheckIn(
+            CurrentUser.id(),
             request.spotId(),
             request.tripId(),
             request.type(),
             request.moodText(),
             request.location(),
-            request.photoIds() == null ? new ArrayList<>() : request.photoIds()
+            request.photoIds() == null ? new ArrayList<>() : request.photoIds(),
+            request.visitedAt(),
+            request.clientRequestId()
         ));
     }
 
@@ -37,6 +41,7 @@ public class CheckInController {
         @NotBlank String spotId,
         String tripId,
         String type,
+        String visitedAt,
         String moodText,
         Map<String, Object> location,
         List<String> photoIds,

@@ -1,5 +1,6 @@
 package app.travelaround.aimemory;
 
+import app.travelaround.common.security.CurrentUser;
 import app.travelaround.common.web.ApiResponse;
 import app.travelaround.core.TravelStore;
 import jakarta.validation.Valid;
@@ -24,12 +25,12 @@ public class AiMemoryController {
 
     @PostMapping("/generate")
     ApiResponse<Map<String, Object>> generate(@Valid @RequestBody GenerateRequest request) {
-        return ApiResponse.ok(store.generateMemory(request.tripId(), request.style(), request.extraPrompt(), model));
+        return ApiResponse.ok(store.generateMemory(CurrentUser.id(), request.tripId(), request.style(), request.extraPrompt(), model));
     }
 
     @PostMapping
     ApiResponse<Map<String, Object>> save(@Valid @RequestBody SaveRequest request) {
-        return ApiResponse.ok(store.saveMemory(request.tripId(), request.title(), request.content(), request.summary(), request.shareText(), request.style()));
+        return ApiResponse.ok(store.saveMemory(CurrentUser.id(), request.tripId(), request.title(), request.content(), request.summary(), request.shareText(), request.style()));
     }
 
     record GenerateRequest(@NotBlank String tripId, String style, String extraPrompt) {
