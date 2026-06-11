@@ -2,7 +2,7 @@
 
 Version: Backend MVP  
 Status: Implemented for the current frontend API-mode loop under `backend/`  
-Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, and image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs. Production persistence, SMS, and live AI provider integration are still follow-up work.
+Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, and AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes. Production persistence and SMS are still follow-up work.
 
 ## 1. Design Goals
 
@@ -15,7 +15,7 @@ This contract is based on the current frontend mock data and the TravelAround PR
 - Users can create and view trips.
 - Users can generate and view AI memories.
 - Users can view achievements and theme quest progress.
-- Images are represented as backend-owned metadata objects. Real object storage upload can be implemented later.
+- Images are represented as backend-owned metadata objects with local fallback and S3-compatible presigned upload support.
 
 The MVP backend should keep the first closed loop small: user -> city/spot -> check-in -> trip -> AI memory -> achievement progress.
 

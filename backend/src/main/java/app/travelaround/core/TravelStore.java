@@ -2,6 +2,7 @@ package app.travelaround.core;
 
 import app.travelaround.common.error.ApiException;
 import app.travelaround.common.error.ErrorCode;
+import app.travelaround.aimemory.AiMemoryGenerateInput;
 import app.travelaround.image.UploadTarget;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -368,24 +369,42 @@ public class TravelStore {
         return copy(image);
     }
 
-    public synchronized Map<String, Object> generateMemory(String userId, String tripId, String style, String extraPrompt, String model) {
+    public synchronized AiMemoryGenerateInput aiMemoryInput(String userId, String tripId, String style, String extraPrompt) {
         Map<String, Object> trip = trip(userId, tripId);
-        if (stringList(trip.get("spotIds")).isEmpty()) {
+        List<String> spotIds = stringList(trip.get("spotIds"));
+        if (spotIds.isEmpty()) {
             throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.AI_MEMORY_NOT_READY, "Trip needs at least one spot.");
         }
-        String title = String.valueOf(trip.get("title"));
-        return map(
-            "tripId", tripId,
-            "title", "AI 旅行回忆：" + title,
-            "summary", trip.get("summary"),
-            "content", "这是一段由后端 AI Provider 生成的旅行回忆草稿。当前 provider 为 mock，模型配置为 " + model + "。你可以继续编辑后保存。" +
-                (extraPrompt == null || extraPrompt.isBlank() ? "" : " 补充要求：" + extraPrompt),
-            "shareText", title + " 已生成一段新的旅行回忆。",
-            "style", style == null || style.isBlank() ? "自然日记" : style,
-            "photoUrls", trip.get("photoUrls"),
-            "spotIds", trip.get("spotIds"),
-            "generatedAt", Instant.now().toString(),
-            "safetyFallback", false
+        List<String> cityNames = stringList(trip.get("cityIds")).stream()
+            .map(cities::get)
+            .filter(item -> item != null)
+            .map(item -> String.valueOf(item.get("name")))
+            .toList();
+        List<String> spotNames = spotIds.stream()
+            .map(spots::get)
+            .filter(item -> item != null)
+            .map(item -> String.valueOf(item.get("name")))
+            .toList();
+        List<String> moodTexts = checkIns.values().stream()
+            .filter(item -> tripId.equals(item.get("tripId")) && userId.equals(item.get("userId")))
+            .map(item -> String.valueOf(item.getOrDefault("moodText", "")))
+            .filter(item -> !item.isBlank())
+            .toList();
+
+        return new AiMemoryGenerateInput(
+            tripId,
+            String.valueOf(trip.get("title")),
+            cityNames,
+            String.valueOf(trip.get("startDate")),
+            String.valueOf(trip.get("endDate")),
+            ((Number) trip.get("days")).intValue(),
+            spotNames,
+            moodTexts,
+            ((Number) trip.getOrDefault("photoCount", 0)).intValue(),
+            stringList(trip.get("photoUrls")),
+            spotIds,
+            style,
+            extraPrompt
         );
     }
 

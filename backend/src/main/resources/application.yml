@@ -22,6 +22,11 @@ travelaround:
   ai:
     provider: ${TRAVELAROUND_AI_PROVIDER:mock}
     model: ${TRAVELAROUND_AI_MODEL:claude-haiku-4-5}
+    api-key: ${ANTHROPIC_API_KEY:${DEEPSEEK_API_KEY:}}
+    endpoint: ${TRAVELAROUND_AI_ENDPOINT:}
+    anthropic-version: ${TRAVELAROUND_ANTHROPIC_VERSION:2023-06-01}
+    max-tokens: ${TRAVELAROUND_AI_MAX_TOKENS:1200}
+    timeout-seconds: ${TRAVELAROUND_AI_TIMEOUT_SECONDS:30}
   storage:
     provider: ${TRAVELAROUND_STORAGE_PROVIDER:local}
     endpoint: ${TRAVELAROUND_STORAGE_ENDPOINT:http://localhost:9000}

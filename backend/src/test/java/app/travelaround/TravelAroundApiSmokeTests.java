@@ -47,6 +47,22 @@ class TravelAroundApiSmokeTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.checkIns.length()").value(2));
 
+        mockMvc.perform(post("/v1/ai-memories/generate")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tripId\":\"hangzhou-3-days\",\"style\":\"自然日记\",\"extraPrompt\":\"写得温柔一点\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.tripId").value("hangzhou-3-days"))
+            .andExpect(jsonPath("$.data.safetyFallback").value(false));
+
+        mockMvc.perform(post("/v1/ai-memories/generate")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"tripId\":\"hangzhou-3-days\",\"style\":\"自然日记\",\"extraPrompt\":\"加入暴力内容\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.tripId").value("hangzhou-3-days"))
+            .andExpect(jsonPath("$.data.safetyFallback").value(true));
+
         mockMvc.perform(post("/v1/check-ins")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
