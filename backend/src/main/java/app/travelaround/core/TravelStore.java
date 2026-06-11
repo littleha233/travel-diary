@@ -2,6 +2,7 @@ package app.travelaround.core;
 
 import app.travelaround.common.error.ApiException;
 import app.travelaround.common.error.ErrorCode;
+import app.travelaround.image.UploadTarget;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -319,20 +320,29 @@ public class TravelStore {
             .toList();
     }
 
-    public synchronized Map<String, Object> uploadTarget(String fileName, String contentType, String baseUrl) {
-        String id = "img_" + UUID.randomUUID().toString().replace("-", "").substring(0, 12);
+    public synchronized Map<String, Object> uploadTarget(String userId, String fileName, String contentType, String linkedType, UploadTarget target) {
+        String id = target.imageId();
         Map<String, Object> image = map(
             "id", id,
-            "userId", "u-nicola",
-            "url", baseUrl + "/v1/uploads/" + id,
-            "thumbnailUrl", baseUrl + "/v1/uploads/" + id,
+            "userId", userId,
+            "objectKey", target.objectKey(),
+            "url", target.publicUrl(),
+            "thumbnailUrl", target.publicUrl(),
             "contentType", contentType == null ? "image/jpeg" : contentType,
             "fileName", fileName,
+            "linkedType", linkedType,
             "status", "pending",
             "createdAt", Instant.now().toString()
         );
         images.put(id, image);
-        return map("imageId", id, "uploadUrl", baseUrl + "/v1/uploads/" + id, "method", "PUT", "headers", Map.of());
+        return map(
+            "imageId", id,
+            "uploadUrl", target.uploadUrl(),
+            "method", target.method(),
+            "headers", target.headers(),
+            "url", target.publicUrl(),
+            "objectKey", target.objectKey()
+        );
     }
 
     public synchronized void markUploaded(String imageId, long size) {
@@ -343,13 +353,18 @@ public class TravelStore {
         }
     }
 
-    public synchronized Map<String, Object> confirmImage(String imageId, String linkedType) {
+    public synchronized Map<String, Object> confirmImage(String userId, String imageId, String linkedType, String linkedId) {
         Map<String, Object> image = images.get(imageId);
         if (image == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.IMAGE_NOT_FOUND, "Image not found.", map("imageId", imageId));
         }
+        if (!userId.equals(image.get("userId"))) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.IMAGE_NOT_FOUND, "Image not found.", map("imageId", imageId));
+        }
         image.put("linkedType", linkedType);
+        image.put("linkedId", linkedId);
         image.put("status", "confirmed");
+        image.put("updatedAt", Instant.now().toString());
         return copy(image);
     }
 

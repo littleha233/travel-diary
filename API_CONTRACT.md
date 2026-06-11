@@ -2,7 +2,7 @@
 
 Version: Backend MVP  
 Status: Implemented for the current frontend API-mode loop under `backend/`  
-Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows; production persistence, object storage, SMS, and live AI provider integration are still follow-up work.
+Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, and image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs. Production persistence, SMS, and live AI provider integration are still follow-up work.
 
 ## 1. Design Goals
 

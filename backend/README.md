@@ -15,6 +15,7 @@ The default profile uses an in-memory H2 database so the API can run without Doc
 
 - Phase 1 is implemented: Spring Boot scaffold, JWT auth, API envelope, seed data, and read APIs.
 - Phase 2 is implemented for the runtime service: trip creation, check-in creation, GPS radius validation, nearby spots, check-in idempotency via `clientRequestId`, and derived city/spot/trip update responses.
+- Phase 3 is implemented for image uploads: local fallback uploads still work for fast tests, and Docker/MinIO mode returns S3-compatible presigned PUT URLs, confirms image metadata, and exposes public image URLs.
 - Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
 
 The service still uses the in-memory `TravelStore` for request handling. Switching runtime reads/writes to MyBatis-Plus mappers is the next persistence step.
@@ -31,6 +32,18 @@ Services:
 - Backend: `http://localhost:8080`
 - MySQL: `localhost:3306`
 - MinIO console: `http://localhost:9001`
+
+MinIO credentials:
+
+```text
+travelaround / travelaround
+```
+
+For real-device testing, set `TRAVELAROUND_STORAGE_PUBLIC_ENDPOINT` to a URL reachable by the phone, for example:
+
+```bash
+TRAVELAROUND_STORAGE_PUBLIC_ENDPOINT=http://<LAN-IP>:9000
+```
 
 Frontend API mode:
 

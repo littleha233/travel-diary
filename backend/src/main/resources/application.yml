@@ -22,3 +22,11 @@ travelaround:
   ai:
     provider: ${TRAVELAROUND_AI_PROVIDER:mock}
     model: ${TRAVELAROUND_AI_MODEL:claude-haiku-4-5}
+  storage:
+    provider: ${TRAVELAROUND_STORAGE_PROVIDER:local}
+    endpoint: ${TRAVELAROUND_STORAGE_ENDPOINT:http://localhost:9000}
+    public-endpoint: ${TRAVELAROUND_STORAGE_PUBLIC_ENDPOINT:http://localhost:9000}
+    access-key: ${TRAVELAROUND_STORAGE_ACCESS_KEY:travelaround}
+    secret-key: ${TRAVELAROUND_STORAGE_SECRET_KEY:travelaround}
+    bucket: ${TRAVELAROUND_STORAGE_BUCKET:travelaround-images}
+    presign-expiry-seconds: ${TRAVELAROUND_STORAGE_PRESIGN_EXPIRY_SECONDS:900}

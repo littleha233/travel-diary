@@ -2,6 +2,7 @@ package app.travelaround;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -77,5 +78,29 @@ class TravelAroundApiSmokeTests {
                 .content("{\"spotId\":\"lingyin-temple\",\"tripId\":\"hangzhou-3-days\",\"type\":\"gps\",\"location\":{\"latitude\":31.2304,\"longitude\":121.4737}}"))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.error.code").value("CHECK_IN_OUT_OF_RANGE"));
+
+        String uploadResponse = mockMvc.perform(post("/v1/images/upload-url")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fileName\":\"broken-bridge.jpg\",\"contentType\":\"image/jpeg\",\"linkedType\":\"check_in\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.imageId").isString())
+            .andExpect(jsonPath("$.data.uploadUrl").isString())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String imageId = objectMapper.readTree(uploadResponse).path("data").path("imageId").asText();
+
+        mockMvc.perform(put("/v1/uploads/" + imageId).contentType(MediaType.IMAGE_JPEG).content("fake-image"))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/v1/images/" + imageId + "/confirm")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"linkedType\":\"check_in\",\"linkedId\":\"ci-west-lake\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.id").value(imageId))
+            .andExpect(jsonPath("$.data.status").value("confirmed"))
+            .andExpect(jsonPath("$.data.linkedId").value("ci-west-lake"));
     }
 }
