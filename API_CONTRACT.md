@@ -1,8 +1,8 @@
 # TravelAround API Contract
 
-Version: Phase 4 MVP  
-Status: Draft  
-Scope: REST API contract only. No backend implementation in this phase.
+Version: Backend MVP  
+Status: Implemented for the current frontend API-mode loop under `backend/`  
+Scope: REST API contract plus local Spring Boot backend MVP. Production persistence, object storage, SMS, and live AI provider integration are still follow-up work.
 
 ## 1. Design Goals
 

@@ -1,0 +1,49 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: travelaround
+      MYSQL_ROOT_PASSWORD: travelaround
+      MYSQL_USER: travelaround
+      MYSQL_PASSWORD: travelaround
+    ports:
+      - "3306:3306"
+    volumes:
+      - travelaround-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-ptravelaround"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: travelaround
+      MINIO_ROOT_PASSWORD: travelaround
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - travelaround-minio:/data
+
+  backend:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/travelaround?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai
+      SPRING_DATASOURCE_USERNAME: travelaround
+      SPRING_DATASOURCE_PASSWORD: travelaround
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      TRAVELAROUND_JWT_SECRET: change-this-secret-before-production-32-bytes
+    ports:
+      - "8080:8080"
+
+volumes:
+  travelaround-mysql:
+  travelaround-minio:

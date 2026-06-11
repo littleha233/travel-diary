@@ -1,6 +1,6 @@
 # TravelAround
 
-TravelAround v0.1 is an Expo + React Native + TypeScript frontend prototype for a travel check-in and travel map app.
+TravelAround v0.1 is an Expo + React Native + TypeScript app for a travel check-in and travel map product, with a Spring Boot backend MVP under `backend/`.
 
 ## Tech Stack
 
@@ -10,6 +10,7 @@ TravelAround v0.1 is an Expo + React Native + TypeScript frontend prototype for 
 - Expo Router
 - StyleSheet
 - Local mock data / switchable API service layer
+- Java 17 + Spring Boot backend MVP
 
 ## Getting Started
 
@@ -33,6 +34,13 @@ npm run android
 npm run web
 ```
 
+Start the backend MVP:
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
 Run TypeScript checks:
 
 ```bash
@@ -41,7 +49,7 @@ npm run typecheck
 
 ## Prototype Scope
 
-The app can run on local mock data or a backend API contract. It does not connect to a real map SDK, real login, or real image upload yet.
+The app can run on local mock data or the backend MVP API. It does not connect to a native map SDK, production SMS login, production object storage, or a live AI provider yet.
 
 Implemented screens include:
 
