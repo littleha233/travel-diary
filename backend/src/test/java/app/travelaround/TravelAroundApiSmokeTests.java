@@ -1,5 +1,7 @@
 package app.travelaround;
 
+import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -46,6 +48,66 @@ class TravelAroundApiSmokeTests {
         mockMvc.perform(get("/v1/trips/hangzhou-3-days").header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.checkIns.length()").value(2));
+
+        mockMvc.perform(post("/v1/cities/suzhou/manual-light").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.city.id").value("suzhou"))
+            .andExpect(jsonPath("$.data.city.lit").value(true))
+            .andExpect(jsonPath("$.data.city.manuallyLit").value(true));
+
+        mockMvc.perform(delete("/v1/cities/suzhou/manual-light").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.city.id").value("suzhou"))
+            .andExpect(jsonPath("$.data.city.lit").value(false))
+            .andExpect(jsonPath("$.data.city.manuallyLit").value(false));
+
+        mockMvc.perform(post("/v1/wishlist/cities/suzhou").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.city.id").value("suzhou"))
+            .andExpect(jsonPath("$.data.city.wished").value(true));
+
+        mockMvc.perform(get("/v1/cities?status=wishlist&pageSize=100").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[*].id", hasItem("suzhou")));
+
+        mockMvc.perform(delete("/v1/wishlist/cities/suzhou").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.city.id").value("suzhou"))
+            .andExpect(jsonPath("$.data.city.wished").value(false));
+
+        mockMvc.perform(post("/v1/wishlist/spots/lingyin-temple").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.spot.id").value("lingyin-temple"))
+            .andExpect(jsonPath("$.data.spot.status").value("wishlist"));
+
+        mockMvc.perform(delete("/v1/wishlist/spots/lingyin-temple").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.spot.id").value("lingyin-temple"))
+            .andExpect(jsonPath("$.data.spot.status").value("available"));
+
+        mockMvc.perform(post("/v1/wishlist/spots/west-lake").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.spot.id").value("west-lake"))
+            .andExpect(jsonPath("$.data.spot.status").value("lit"));
+
+        String planResponse = mockMvc.perform(post("/v1/plans/weekend-template").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.plan.userId").value("u-nicola"))
+            .andExpect(jsonPath("$.data.plan.cityIds[0]").value("hangzhou"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String planId = objectMapper.readTree(planResponse).path("data").path("plan").path("id").asText();
+
+        mockMvc.perform(get("/v1/plans/" + planId).header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.plan.id").value(planId))
+            .andExpect(jsonPath("$.data.plan.userId").value("u-nicola"));
+
+        mockMvc.perform(delete("/v1/plans/" + planId).header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.deleted").value(true))
+            .andExpect(jsonPath("$.data.planId").value(planId));
 
         mockMvc.perform(post("/v1/ai-memories/generate")
                 .header("Authorization", "Bearer " + token)

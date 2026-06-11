@@ -2,7 +2,7 @@
 
 Version: Backend MVP  
 Status: Implemented for the current frontend API-mode loop under `backend/`  
-Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, and AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes. Production persistence and SMS are still follow-up work.
+Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes, and Phase 5 wishlist/manual-light/plans are implemented with user-scoped runtime state. Production persistence and SMS are still follow-up work.
 
 ## 1. Design Goals
 
@@ -115,6 +115,7 @@ Error response:
 | 404  | `CITY_NOT_FOUND`        | City does not exist.                          |
 | 404  | `SPOT_NOT_FOUND`        | Spot does not exist.                          |
 | 404  | `TRIP_NOT_FOUND`        | Trip does not exist.                          |
+| 404  | `PLAN_NOT_FOUND`        | Travel plan does not exist.                   |
 | 404  | `IMAGE_NOT_FOUND`       | Image asset does not exist.                   |
 | 404  | `AI_MEMORY_NOT_FOUND`   | AI memory does not exist.                     |
 | 409  | `DUPLICATE_RESOURCE`    | A unique resource already exists.             |
@@ -1395,7 +1396,161 @@ Pagination:
 
 Not needed.
 
-### 6.16 Get Achievements And Quest Progress
+### 6.17 Manual Light And Wishlist
+
+Manual light and wishlist state is per user. Mutating one user must not update global city/spot seed data or another user's state.
+
+```http
+POST /cities/{cityId}/manual-light
+DELETE /cities/{cityId}/manual-light
+POST /wishlist/cities/{cityId}
+DELETE /wishlist/cities/{cityId}
+POST /wishlist/spots/{spotId}
+DELETE /wishlist/spots/{spotId}
+```
+
+Response `200` for city mutation:
+
+```json
+{
+  "data": {
+    "city": {
+      "id": "suzhou",
+      "name": "苏州",
+      "lit": true,
+      "manuallyLit": true,
+      "wished": false,
+      "visitedAt": "2026-06-11"
+    }
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-11T06:00:00.000Z"
+  }
+}
+```
+
+Response `200` for spot wishlist mutation:
+
+```json
+{
+  "data": {
+    "spot": {
+      "id": "lingyin-temple",
+      "cityId": "hangzhou",
+      "status": "wishlist",
+      "canCheckIn": true
+    }
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-11T06:00:00.000Z"
+  }
+}
+```
+
+Behavior:
+
+- `DELETE /cities/{cityId}/manual-light` clears only the manual flag. If the user has lit spots in that city, `lit` remains `true`.
+- Spot wishlist changes do not downgrade a lit spot.
+- `GET /cities?status=wishlist` and `GET /spots?status=wishlist` return the current user's wishlist state.
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `CITY_NOT_FOUND`
+- `SPOT_NOT_FOUND`
+
+### 6.18 Plans
+
+Travel plans are per user. MVP supports listing, detail, weekend template creation, and deletion.
+
+```http
+GET /plans
+GET /plans/{planId}
+POST /plans/weekend-template
+DELETE /plans/{planId}
+```
+
+Response `200` for `GET /plans`:
+
+```json
+{
+  "data": [
+    {
+      "id": "hangzhou-weekend",
+      "userId": "u-nicola",
+      "title": "杭州周末探索",
+      "cityIds": ["hangzhou"],
+      "days": 3,
+      "progress": 2,
+      "total": 8,
+      "coverUrl": "https://cdn.travelaround.app/plans/hangzhou.jpg",
+      "startHint": "下次出发 · Next Mission",
+      "spotIds": ["broken-bridge", "sudi"],
+      "wishlistCityIds": ["chengdu", "beijing", "nanjing"]
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "pageSize": 1,
+    "total": 1,
+    "hasMore": false
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-11T06:00:00.000Z"
+  }
+}
+```
+
+Response `200` for `POST /plans/weekend-template` and `GET /plans/{planId}`:
+
+```json
+{
+  "data": {
+    "plan": {
+      "id": "weekend-1781160000000",
+      "userId": "u-nicola",
+      "title": "杭州周末探索",
+      "cityIds": ["hangzhou"],
+      "days": 3,
+      "progress": 0,
+      "total": 4,
+      "coverUrl": "https://cdn.travelaround.app/plans/hangzhou.jpg",
+      "startHint": "下次出发 · Next Mission",
+      "spotIds": ["broken-bridge", "sudi", "lingyin-temple", "leifeng-pagoda"],
+      "wishlistCityIds": ["chengdu", "beijing", "nanjing"]
+    }
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-11T06:00:00.000Z"
+  }
+}
+```
+
+Response `200` for `DELETE /plans/{planId}`:
+
+```json
+{
+  "data": {
+    "deleted": true,
+    "planId": "weekend-1781160000000"
+  },
+  "meta": {
+    "requestId": "req_01",
+    "serverTime": "2026-06-11T06:00:00.000Z"
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `PLAN_NOT_FOUND`
+
+### 6.19 Get Achievements And Quest Progress
 
 Returns the data currently used by the Achievements page: badges plus theme quest progress.
 
@@ -1469,6 +1624,8 @@ This is not implementation, but these table names map cleanly to a later Spring 
 - `users`
 - `cities`
 - `spots`
+- `user_city_states`
+- `user_spot_states`
 - `check_ins`
 - `trips`
 - `trip_cities`
@@ -1481,6 +1638,9 @@ This is not implementation, but these table names map cleanly to a later Spring 
 - `theme_quests`
 - `theme_quest_spots`
 - `theme_quest_cities`
+- `plans`
+- `plan_cities`
+- `plan_spots`
 
 ## 8. Service Boundaries
 
@@ -1492,6 +1652,8 @@ Suggested Spring Boot package/module boundaries:
 - Trip service: `/trips`.
 - Image service: `/images/upload-url`, `/images/{imageId}/confirm`.
 - AI memory service: `/ai-memories/generate`, `/ai-memories`, `/ai-memories/{memoryId}`.
+- Wishlist service: `/cities/{cityId}/manual-light`, `/wishlist/cities/{cityId}`, `/wishlist/spots/{spotId}`.
+- Plan service: `/plans`, `/plans/{planId}`, `/plans/weekend-template`.
 - Achievement service: `/achievements`, quest progress recalculation.
 
 For Phase 5 implementation, start with user, place, check-in, and trip persistence before adding real image storage or a real AI provider.

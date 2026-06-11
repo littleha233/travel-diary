@@ -17,6 +17,7 @@ The default profile uses an in-memory H2 database so the API can run without Doc
 - Phase 2 is implemented for the runtime service: trip creation, check-in creation, GPS radius validation, nearby spots, check-in idempotency via `clientRequestId`, and derived city/spot/trip update responses.
 - Phase 3 is implemented for image uploads: local fallback uploads still work for fast tests, and Docker/MinIO mode returns S3-compatible presigned PUT URLs, confirms image metadata, and exposes public image URLs.
 - Phase 4 is implemented for AI memories: `/ai-memories/generate` now runs through a backend `AiMemoryProvider` abstraction with `mock`, `anthropic`, and `deepseek` providers, server-side API keys, retry handling, and safe fallback drafts.
+- Phase 5 is implemented for wishlist/manual-light/plans: city and spot state is now resolved per user, wishlist/manual-light mutations are user-scoped, and plans support list/detail/weekend-template/delete flows.
 - Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
 
 The service still uses the in-memory `TravelStore` for request handling. Switching runtime reads/writes to MyBatis-Plus mappers is the next persistence step.

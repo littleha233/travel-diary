@@ -1,5 +1,6 @@
 package app.travelaround.place;
 
+import app.travelaround.common.security.CurrentUser;
 import app.travelaround.common.web.ApiResponse;
 import app.travelaround.core.TravelStore;
 import java.util.List;
@@ -26,13 +27,13 @@ public class PlaceController {
         @RequestParam(required = false, defaultValue = "1") int page,
         @RequestParam(required = false, defaultValue = "100") int pageSize
     ) {
-        List<Map<String, Object>> items = store.listCities(status, keyword);
+        List<Map<String, Object>> items = store.listCities(CurrentUser.id(), status, keyword);
         return ApiResponse.page(page(items, page, pageSize), page, pageSize, items.size());
     }
 
     @GetMapping("/cities/{cityId}")
     ApiResponse<Map<String, Object>> city(@PathVariable String cityId) {
-        return ApiResponse.ok(Map.of("city", store.city(cityId)));
+        return ApiResponse.ok(Map.of("city", store.city(CurrentUser.id(), cityId)));
     }
 
     @GetMapping("/spots")
@@ -43,13 +44,13 @@ public class PlaceController {
         @RequestParam(required = false, defaultValue = "1") int page,
         @RequestParam(required = false, defaultValue = "100") int pageSize
     ) {
-        List<Map<String, Object>> items = store.listSpots(cityId, status, keyword);
+        List<Map<String, Object>> items = store.listSpots(CurrentUser.id(), cityId, status, keyword);
         return ApiResponse.page(page(items, page, pageSize), page, pageSize, items.size());
     }
 
     @GetMapping("/spots/{spotId}")
     ApiResponse<Map<String, Object>> spot(@PathVariable String spotId) {
-        return ApiResponse.ok(Map.of("spot", store.spot(spotId)));
+        return ApiResponse.ok(Map.of("spot", store.spot(CurrentUser.id(), spotId)));
     }
 
     @GetMapping("/spots/nearby")
@@ -58,7 +59,7 @@ public class PlaceController {
         @RequestParam double longitude,
         @RequestParam(required = false, defaultValue = "5000") int radiusMeters
     ) {
-        return ApiResponse.ok(store.nearbySpots(latitude, longitude, radiusMeters));
+        return ApiResponse.ok(store.nearbySpots(CurrentUser.id(), latitude, longitude, radiusMeters));
     }
 
     private List<Map<String, Object>> page(List<Map<String, Object>> items, int page, int pageSize) {

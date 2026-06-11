@@ -26,6 +26,8 @@ public class TravelStore {
     private final Map<String, Map<String, Object>> aiMemories = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> images = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> plans = new LinkedHashMap<>();
+    private final Map<String, Map<String, Object>> userCityStates = new LinkedHashMap<>();
+    private final Map<String, Map<String, Object>> userSpotStates = new LinkedHashMap<>();
     private final Map<String, String> checkInRequests = new LinkedHashMap<>();
     private final List<Map<String, Object>> achievements = new ArrayList<>();
     private final List<Map<String, Object>> quests = new ArrayList<>();
@@ -64,62 +66,62 @@ public class TravelStore {
         return copy(user);
     }
 
-    public synchronized List<Map<String, Object>> listCities(String status, String keyword) {
+    public synchronized List<Map<String, Object>> listCities(String userId, String status, String keyword) {
         List<Map<String, Object>> result = new ArrayList<>();
         String normalizedKeyword = normalize(keyword);
         for (Map<String, Object> city : cities.values()) {
-            if (!matchesCityStatus(city, status)) {
+            if (!matchesCityStatus(userId, city, status)) {
                 continue;
             }
             if (!normalizedKeyword.isEmpty() && !normalize(String.valueOf(city.get("name")) + " " + city.get("tags")).contains(normalizedKeyword)) {
                 continue;
             }
-            result.add(enrichCity(city));
+            result.add(enrichCity(userId, city));
         }
         return result;
     }
 
-    public synchronized Map<String, Object> city(String cityId) {
+    public synchronized Map<String, Object> city(String userId, String cityId) {
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
         }
-        return enrichCity(city);
+        return enrichCity(userId, city);
     }
 
-    public synchronized List<Map<String, Object>> listSpots(String cityId, String status, String keyword) {
+    public synchronized List<Map<String, Object>> listSpots(String userId, String cityId, String status, String keyword) {
         List<Map<String, Object>> result = new ArrayList<>();
         String normalizedKeyword = normalize(keyword);
         for (Map<String, Object> spot : spots.values()) {
             if (cityId != null && !cityId.isBlank() && !cityId.equals(spot.get("cityId"))) {
                 continue;
             }
-            if (status != null && !status.isBlank() && !"all".equals(status) && !status.equals(spot.get("status"))) {
+            if (status != null && !status.isBlank() && !"all".equals(status) && !status.equals(effectiveSpotStatus(userId, spot))) {
                 continue;
             }
             if (!normalizedKeyword.isEmpty() && !normalize(String.valueOf(spot.get("name")) + " " + spot.get("tags")).contains(normalizedKeyword)) {
                 continue;
             }
-            result.add(enrichSpot(spot));
+            result.add(enrichSpot(userId, spot));
         }
         return result;
     }
 
-    public synchronized Map<String, Object> spot(String spotId) {
+    public synchronized Map<String, Object> spot(String userId, String spotId) {
         Map<String, Object> spot = spots.get(spotId);
         if (spot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
         }
-        return enrichSpot(spot);
+        return enrichSpot(userId, spot);
     }
 
-    public synchronized List<Map<String, Object>> nearbySpots(double latitude, double longitude, int radiusMeters) {
+    public synchronized List<Map<String, Object>> nearbySpots(String userId, double latitude, double longitude, int radiusMeters) {
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> spot : spots.values()) {
             Map<String, Object> coordinates = mapValue(spot.get("coordinates"));
             double distance = distanceMeters(latitude, longitude, number(coordinates.get("latitude")), number(coordinates.get("longitude")));
             if (distance <= radiusMeters) {
-                Map<String, Object> item = enrichSpot(spot);
+                Map<String, Object> item = enrichSpot(userId, spot);
                 item.put("distanceMeters", Math.round(distance));
                 item.put("distance", distance < 1000 ? Math.round(distance) + "m" : String.format(Locale.US, "%.1fkm", distance / 1000));
                 result.add(item);
@@ -162,7 +164,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> createTrip(String userId, String title, String cityId, String startDate, String endDate, String visibility) {
-        city(cityId);
+        city(userId, cityId);
         long days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1;
         if (days <= 0) {
             throw new ApiException(HttpStatus.CONFLICT, ErrorCode.TRIP_DATE_CONFLICT, "Trip endDate must be on or after startDate.");
@@ -238,11 +240,13 @@ public class TravelStore {
             checkInRequests.put(idempotencyKey, id);
         }
 
-        spot.put("status", "lit");
-        spot.put("canCheckIn", false);
+        Map<String, Object> spotState = spotState(userId, spotId);
+        spotState.put("status", "lit");
+        spotState.put("canCheckIn", false);
         Map<String, Object> city = cities.get(cityId);
-        city.put("lit", true);
-        city.put("visitedAt", LocalDate.now().toString());
+        Map<String, Object> cityState = cityState(userId, cityId);
+        cityState.put("lit", true);
+        cityState.put("visitedAt", LocalDate.now().toString());
 
         if (tripId != null) {
             Map<String, Object> trip = trips.get(tripId);
@@ -252,53 +256,68 @@ public class TravelStore {
             trip.put("updatedAt", Instant.now().toString());
             updateTripSummary(trip);
         }
-        List<Map<String, Object>> unlockedAchievements = refreshAchievementProgress();
+        List<Map<String, Object>> unlockedAchievements = refreshAchievementProgress(userId);
         return checkInMutationResult(checkIn, unlockedAchievements);
     }
 
-    public synchronized Map<String, Object> manualLight(String cityId, boolean lit) {
+    public synchronized Map<String, Object> manualLight(String userId, String cityId, boolean lit) {
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
         }
-        city.put("manuallyLit", lit);
-        city.put("lit", lit || hasLitSpot(cityId));
+        Map<String, Object> state = cityState(userId, cityId);
+        state.put("manuallyLit", lit);
+        state.put("lit", lit || hasLitSpot(userId, cityId));
         if (lit) {
-            city.put("visitedAt", LocalDate.now().toString());
-        } else if (!hasLitSpot(cityId)) {
-            city.remove("visitedAt");
+            state.put("visitedAt", LocalDate.now().toString());
+        } else if (!hasLitSpot(userId, cityId)) {
+            state.remove("visitedAt");
         }
-        return map("city", enrichCity(city));
+        return map("city", enrichCity(userId, city));
     }
 
-    public synchronized Map<String, Object> wishlistCity(String cityId, boolean wished) {
+    public synchronized Map<String, Object> wishlistCity(String userId, String cityId, boolean wished) {
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
         }
-        city.put("wished", wished);
-        return map("city", enrichCity(city));
+        cityState(userId, cityId).put("wished", wished);
+        return map("city", enrichCity(userId, city));
     }
 
-    public synchronized Map<String, Object> wishlistSpot(String spotId, boolean wished) {
+    public synchronized Map<String, Object> wishlistSpot(String userId, String spotId, boolean wished) {
         Map<String, Object> spot = spots.get(spotId);
         if (spot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
         }
-        if (!"lit".equals(spot.get("status"))) {
-            spot.put("status", wished ? "wishlist" : "available");
+        Map<String, Object> state = spotState(userId, spotId);
+        if (!"lit".equals(state.get("status"))) {
+            state.put("status", wished ? "wishlist" : "available");
+            state.put("canCheckIn", spot.get("canCheckIn"));
         }
-        return map("spot", enrichSpot(spot));
+        return map("spot", enrichSpot(userId, spot));
     }
 
-    public synchronized List<Map<String, Object>> listPlans() {
-        return plans.values().stream().map(this::copy).toList();
+    public synchronized List<Map<String, Object>> listPlans(String userId) {
+        return plans.values().stream()
+            .filter(plan -> userId.equals(plan.get("userId")))
+            .map(this::copy)
+            .toList();
     }
 
-    public synchronized Map<String, Object> createWeekendPlan() {
+    public synchronized Map<String, Object> plan(String userId, String planId) {
+        Map<String, Object> plan = plans.get(planId);
+        if (plan == null || !userId.equals(plan.get("userId"))) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.PLAN_NOT_FOUND, "Plan not found.", map("planId", planId));
+        }
+        return copy(plan);
+    }
+
+    public synchronized Map<String, Object> createWeekendPlan(String userId) {
         String id = "weekend-" + System.currentTimeMillis();
         Map<String, Object> plan = map(
             "id", id,
+            "userId", userId,
             "title", "杭州周末探索",
             "cityIds", list("hangzhou"),
             "days", 3,
@@ -307,10 +326,21 @@ public class TravelStore {
             "coverUrl", cities.get("hangzhou").get("coverUrl"),
             "startHint", "下次出发 · Next Mission",
             "spotIds", list("broken-bridge", "sudi", "lingyin-temple", "leifeng-pagoda"),
-            "wishlistCityIds", list("chengdu", "beijing", "nanjing")
+            "wishlistCityIds", list("chengdu", "beijing", "nanjing"),
+            "createdAt", Instant.now().toString(),
+            "updatedAt", Instant.now().toString()
         );
         plans.put(id, plan);
         return map("plan", copy(plan));
+    }
+
+    public synchronized Map<String, Object> deletePlan(String userId, String planId) {
+        Map<String, Object> plan = plans.get(planId);
+        if (plan == null || !userId.equals(plan.get("userId"))) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.PLAN_NOT_FOUND, "Plan not found.", map("planId", planId));
+        }
+        plans.remove(planId);
+        return map("deleted", true, "planId", planId);
     }
 
     public synchronized List<Map<String, Object>> communityPosts(String keyword) {
@@ -571,7 +601,7 @@ public class TravelStore {
         quests.add(map("id", "west-lake-ten", "title", "西湖十景", "subtitle", "4 / 10 已点亮", "description", "沿着湖岸和山影收集杭州最经典的十个景致，完成后解锁西湖收集家徽章。", "progress", 4, "total", 10, "coverUrl", "https://images.unsplash.com/photo-1518684079-3c830dcef090?auto=format&fit=crop&w=900&q=80", "rewardAchievementId", "west-lake-collector", "spotIds", list("west-lake", "broken-bridge", "sudi", "leifeng-pagoda"), "cityIds", list("hangzhou")));
         quests.add(map("id", "five-mountains", "title", "中国五岳", "subtitle", "0 / 5 已点亮", "description", "把五座名山加入长期旅行目标，适合一年一年慢慢完成。", "progress", 0, "total", 5, "coverUrl", "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80", "rewardAchievementId", "city-wanderer", "spotIds", new ArrayList<>(), "cityIds", list("beijing", "xian")));
         quests.add(map("id", "jiangnan-towns", "title", "江南六大古镇", "subtitle", "2 / 6 已点亮", "description", "把水巷、石桥和白墙黑瓦串成一条柔和的江南路线。", "progress", 2, "total", 6, "coverUrl", "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=900&q=80", "rewardAchievementId", "first-departure", "spotIds", new ArrayList<>(), "cityIds", list("hangzhou", "suzhou", "nanjing")));
-        plans.put("hangzhou-weekend", map("id", "hangzhou-weekend", "title", "杭州周末探索", "cityIds", list("hangzhou"), "days", 3, "progress", 2, "total", 8, "coverUrl", "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80", "startHint", "下次出发 · Next Mission", "spotIds", list("broken-bridge", "sudi", "lingyin-temple", "leifeng-pagoda"), "wishlistCityIds", list("chengdu", "beijing", "nanjing")));
+        plans.put("hangzhou-weekend", map("id", "hangzhou-weekend", "userId", "u-nicola", "title", "杭州周末探索", "cityIds", list("hangzhou"), "days", 3, "progress", 2, "total", 8, "coverUrl", "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80", "startHint", "下次出发 · Next Mission", "spotIds", list("broken-bridge", "sudi", "lingyin-temple", "leifeng-pagoda"), "wishlistCityIds", list("chengdu", "beijing", "nanjing"), "createdAt", "2026-06-06T14:00:00.000Z", "updatedAt", "2026-06-06T14:00:00.000Z"));
         communityPosts.add(map("id", "route-hangzhou", "type", "route", "title", "杭州 3 日探索路线", "subtitle", "7 个打卡点 · 3 天 · 2.1k 收藏", "author", "Nicola", "linkedId", "hangzhou-3-days", "actionLabel", "加入我的计划", "progress", 86));
         communityPosts.add(map("id", "memory-post-hangzhou", "type", "ai-memory", "title", "在杭州，把时间走慢", "subtitle", "36 张照片 · AI 回忆", "author", "小森", "imageUrl", "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=600&q=80", "linkedId", "memory-hangzhou"));
         communityPosts.add(map("id", "quest-west-lake", "type", "quest", "title", "西湖十景继续收集", "subtitle", "4 / 10 已点亮 · 完成解锁徽章", "author", "TravelAround", "linkedId", "west-lake-ten", "actionLabel", "查看任务", "progress", 40));
@@ -617,11 +647,20 @@ public class TravelStore {
         ));
     }
 
-    private Map<String, Object> enrichCity(Map<String, Object> city) {
+    private Map<String, Object> enrichCity(String userId, Map<String, Object> city) {
         Map<String, Object> result = copy(city);
-        long litSpotCount = spots.values().stream().filter(spot -> city.get("id").equals(spot.get("cityId")) && "lit".equals(spot.get("status"))).count();
+        Map<String, Object> state = cityState(userId, String.valueOf(city.get("id")));
+        result.put("lit", state.get("lit"));
+        result.put("manuallyLit", state.get("manuallyLit"));
+        result.put("wished", state.get("wished"));
+        if (state.containsKey("visitedAt")) {
+            result.put("visitedAt", state.get("visitedAt"));
+        } else {
+            result.remove("visitedAt");
+        }
+        long litSpotCount = spots.values().stream().filter(spot -> city.get("id").equals(spot.get("cityId")) && "lit".equals(effectiveSpotStatus(userId, spot))).count();
         long totalSpotCount = spots.values().stream().filter(spot -> city.get("id").equals(spot.get("cityId"))).count();
-        long tripCount = trips.values().stream().filter(trip -> stringList(trip.get("cityIds")).contains(city.get("id"))).count();
+        long tripCount = trips.values().stream().filter(trip -> userId.equals(trip.get("userId")) && stringList(trip.get("cityIds")).contains(city.get("id"))).count();
         result.put("stats", map("litSpotCount", litSpotCount, "totalSpotCount", totalSpotCount, "tripCount", tripCount, "photoCount", 0));
         return result;
     }
@@ -633,8 +672,8 @@ public class TravelStore {
 
         Map<String, Object> result = map(
             "checkIn", copy(checkIn),
-            "spot", enrichSpot(spots.get(spotId)),
-            "city", enrichCity(cities.get(cityId)),
+            "spot", enrichSpot(String.valueOf(checkIn.get("userId")), spots.get(spotId)),
+            "city", enrichCity(String.valueOf(checkIn.get("userId")), cities.get(cityId)),
             "unlockedAchievements", unlockedAchievements
         );
         if (tripId != null && trips.containsKey(String.valueOf(tripId))) {
@@ -643,7 +682,7 @@ public class TravelStore {
         return result;
     }
 
-    private List<Map<String, Object>> refreshAchievementProgress() {
+    private List<Map<String, Object>> refreshAchievementProgress(String userId) {
         List<Map<String, Object>> unlocked = new ArrayList<>();
         for (Map<String, Object> quest : quests) {
             List<String> questSpotIds = stringList(quest.get("spotIds"));
@@ -652,7 +691,7 @@ public class TravelStore {
             }
             long progress = questSpotIds.stream().filter(spotId -> {
                 Map<String, Object> spot = spots.get(spotId);
-                return spot != null && "lit".equals(spot.get("status"));
+                return spot != null && "lit".equals(effectiveSpotStatus(userId, spot));
             }).count();
             quest.put("progress", progress);
             quest.put("subtitle", progress + " / " + quest.get("total") + " 已点亮");
@@ -671,8 +710,11 @@ public class TravelStore {
         return unlocked;
     }
 
-    private Map<String, Object> enrichSpot(Map<String, Object> spot) {
+    private Map<String, Object> enrichSpot(String userId, Map<String, Object> spot) {
         Map<String, Object> result = copy(spot);
+        Map<String, Object> state = spotState(userId, String.valueOf(spot.get("id")));
+        result.put("status", state.get("status"));
+        result.put("canCheckIn", state.get("canCheckIn"));
         Map<String, Object> city = cities.get(spot.get("cityId"));
         if (city != null) {
             result.put("cityName", city.get("name"));
@@ -681,33 +723,82 @@ public class TravelStore {
         return result;
     }
 
-    private boolean matchesCityStatus(Map<String, Object> city, String status) {
+    private boolean matchesCityStatus(String userId, Map<String, Object> city, String status) {
         if (status == null || status.isBlank() || "all".equals(status)) {
             return true;
         }
+        Map<String, Object> state = cityState(userId, String.valueOf(city.get("id")));
         return switch (status) {
-            case "lit" -> Boolean.TRUE.equals(city.get("lit"));
-            case "unlit" -> !Boolean.TRUE.equals(city.get("lit"));
-            case "wishlist" -> Boolean.TRUE.equals(city.get("wished"));
+            case "lit" -> Boolean.TRUE.equals(state.get("lit"));
+            case "unlit" -> !Boolean.TRUE.equals(state.get("lit"));
+            case "wishlist" -> Boolean.TRUE.equals(state.get("wished"));
             default -> true;
         };
     }
 
-    private boolean hasLitSpot(String cityId) {
-        return spots.values().stream().anyMatch(spot -> cityId.equals(spot.get("cityId")) && "lit".equals(spot.get("status")));
+    private Map<String, Object> cityState(String userId, String cityId) {
+        Map<String, Object> city = cities.get(cityId);
+        if (city == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
+        }
+        return userCityStates.computeIfAbsent(userKey(userId, cityId), key -> {
+            boolean useSeedState = "u-nicola".equals(userId);
+            Map<String, Object> state = map(
+                "userId", userId,
+                "cityId", cityId,
+                "lit", useSeedState && Boolean.TRUE.equals(city.get("lit")),
+                "manuallyLit", useSeedState && Boolean.TRUE.equals(city.getOrDefault("manuallyLit", false)),
+                "wished", useSeedState && Boolean.TRUE.equals(city.get("wished"))
+            );
+            if (useSeedState && city.containsKey("visitedAt")) {
+                state.put("visitedAt", city.get("visitedAt"));
+            }
+            return state;
+        });
+    }
+
+    private Map<String, Object> spotState(String userId, String spotId) {
+        Map<String, Object> spot = spots.get(spotId);
+        if (spot == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
+        }
+        return userSpotStates.computeIfAbsent(userKey(userId, spotId), key -> {
+            boolean useSeedState = "u-nicola".equals(userId);
+            String seedStatus = String.valueOf(spot.get("status"));
+            String status = useSeedState || "locked".equals(seedStatus) ? seedStatus : "available";
+            return map(
+                "userId", userId,
+                "spotId", spotId,
+                "status", status,
+                "canCheckIn", spot.get("canCheckIn")
+            );
+        });
+    }
+
+    private String effectiveSpotStatus(String userId, Map<String, Object> spot) {
+        return String.valueOf(spotState(userId, String.valueOf(spot.get("id"))).get("status"));
+    }
+
+    private String userKey(String userId, String id) {
+        return userId + ":" + id;
+    }
+
+    private boolean hasLitSpot(String userId, String cityId) {
+        return spots.values().stream().anyMatch(spot -> cityId.equals(spot.get("cityId")) && "lit".equals(effectiveSpotStatus(userId, spot)));
     }
 
     private void refreshUserStats(Map<String, Object> user) {
-        long litCityCount = cities.values().stream().filter(city -> Boolean.TRUE.equals(city.get("lit"))).count();
-        long exploredSpotCount = spots.values().stream().filter(spot -> "lit".equals(spot.get("status"))).count();
+        String userId = String.valueOf(user.get("id"));
+        long litCityCount = cities.values().stream().filter(city -> Boolean.TRUE.equals(cityState(userId, String.valueOf(city.get("id"))).get("lit"))).count();
+        long exploredSpotCount = spots.values().stream().filter(spot -> "lit".equals(effectiveSpotStatus(userId, spot))).count();
         long achievementCount = achievements.stream().filter(item -> Boolean.TRUE.equals(item.get("unlocked"))).count();
-        long provinceCount = cities.values().stream().filter(city -> Boolean.TRUE.equals(city.get("lit"))).map(city -> city.get("province")).distinct().count();
+        long provinceCount = cities.values().stream().filter(city -> Boolean.TRUE.equals(cityState(userId, String.valueOf(city.get("id"))).get("lit"))).map(city -> city.get("province")).distinct().count();
         user.put("litCityCount", litCityCount);
         user.put("exploredSpotCount", exploredSpotCount);
-        user.put("aiMemoryCount", aiMemories.size());
+        user.put("aiMemoryCount", aiMemories.values().stream().filter(memory -> userId.equals(memory.get("userId"))).count());
         user.put("achievementCount", achievementCount);
         user.put("provinceCount", provinceCount);
-        user.put("tripCount", trips.size());
+        user.put("tripCount", trips.values().stream().filter(trip -> userId.equals(trip.get("userId"))).count());
     }
 
     @SuppressWarnings("unchecked")
