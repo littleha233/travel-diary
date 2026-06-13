@@ -18,9 +18,23 @@ The default profile uses an in-memory H2 database so the API can run without Doc
 - Phase 3 is implemented for image uploads: local fallback uploads still work for fast tests, and Docker/MinIO mode returns S3-compatible presigned PUT URLs, confirms image metadata, and exposes public image URLs.
 - Phase 4 is implemented for AI memories: `/ai-memories/generate` now runs through a backend `AiMemoryProvider` abstraction with `mock`, `anthropic`, and `deepseek` providers, server-side API keys, retry handling, and safe fallback drafts.
 - Phase 5 is implemented for wishlist/manual-light/plans: city and spot state is now resolved per user, wishlist/manual-light mutations are user-scoped, and plans support list/detail/weekend-template/delete flows.
+- Persistence phase 6a is implemented as a runtime database snapshot plus relational projection: the service writes the full `TravelStore` state to `travel_store_snapshots`, mirrors it into the V2 core tables after mutations, and restores the runtime state on startup.
 - Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
 
-The service still uses the in-memory `TravelStore` for request handling. Switching runtime reads/writes to MyBatis-Plus mappers is the next persistence step.
+The service still uses `TravelStore` as the request-handling facade. Runtime state now persists through a database snapshot and is mirrored into normalized tables for inspection and migration continuity, while switching runtime reads/writes to domain MyBatis-Plus mappers is the next persistence step.
+
+## Persistence
+
+Migration `V3__travel_store_snapshot.sql` adds `travel_store_snapshots`.
+
+Current behavior:
+
+- On first startup, seed data is written to the snapshot table.
+- On later startups, the service restores users, places, trips, check-ins, images, AI memories, plans, achievements, quests, community posts, and user city/spot state from the snapshot.
+- Mutations such as login phone binding, trip creation, check-in, wishlist/manual-light, image metadata changes, AI memory save, and plan changes write through to the snapshot.
+- Each snapshot save also rewrites the V2 relational projection tables such as `users`, `cities`, `spots`, `user_city_states`, `user_spot_states`, `trips`, `check_ins`, `images`, `ai_memories`, `plans`, achievements, quests, and `community_posts`.
+
+This is an incremental persistence step designed to preserve the current API behavior while keeping the next mapper migration small. Production-grade normalized persistence should move runtime reads and write operations from the snapshot-backed facade into domain mappers/services over the existing Flyway tables.
 
 ## AI Provider
 

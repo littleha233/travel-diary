@@ -4,6 +4,7 @@ import app.travelaround.common.error.ApiException;
 import app.travelaround.common.error.ErrorCode;
 import app.travelaround.aimemory.AiMemoryGenerateInput;
 import app.travelaround.image.UploadTarget;
+import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class TravelStore {
+    private final TravelStoreSnapshotRepository snapshotRepository;
     private final Map<String, Map<String, Object>> users = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> cities = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> spots = new LinkedHashMap<>();
@@ -34,8 +36,14 @@ public class TravelStore {
     private final List<Map<String, Object>> communityPosts = new ArrayList<>();
     private final Map<String, String> smsCodes = new LinkedHashMap<>();
 
-    public TravelStore() {
+    public TravelStore(TravelStoreSnapshotRepository snapshotRepository) {
+        this.snapshotRepository = snapshotRepository;
         seed();
+    }
+
+    @PostConstruct
+    public synchronized void restoreOrCreateSnapshot() {
+        snapshotRepository.load().ifPresentOrElse(this::restoreSnapshot, this::persistSnapshot);
     }
 
     public synchronized Map<String, Object> ensureGuestUser() {
@@ -44,6 +52,7 @@ public class TravelStore {
 
     public synchronized Map<String, Object> sendSmsCode(String phone) {
         smsCodes.put(phone, "123456");
+        persistSnapshot();
         return map("phone", phone, "code", "123456", "mock", true);
     }
 
@@ -52,9 +61,15 @@ public class TravelStore {
         if (!expected.equals(code)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR, "Invalid verification code.");
         }
-        Map<String, Object> user = user("u-nicola");
+        Map<String, Object> user = users.get("u-nicola");
+        if (user == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.USER_NOT_FOUND, "User not found.");
+        }
         user.put("phone", phone);
-        return copy(user);
+        refreshUserStats(user);
+        Map<String, Object> result = copy(user);
+        persistSnapshot();
+        return result;
     }
 
     public synchronized Map<String, Object> user(String userId) {
@@ -189,6 +204,7 @@ public class TravelStore {
             "updatedAt", Instant.now().toString()
         );
         trips.put(id, trip);
+        persistSnapshot();
         return map("trip", copy(trip));
     }
 
@@ -257,7 +273,9 @@ public class TravelStore {
             updateTripSummary(trip);
         }
         List<Map<String, Object>> unlockedAchievements = refreshAchievementProgress(userId);
-        return checkInMutationResult(checkIn, unlockedAchievements);
+        Map<String, Object> result = checkInMutationResult(checkIn, unlockedAchievements);
+        persistSnapshot();
+        return result;
     }
 
     public synchronized Map<String, Object> manualLight(String userId, String cityId, boolean lit) {
@@ -273,7 +291,9 @@ public class TravelStore {
         } else if (!hasLitSpot(userId, cityId)) {
             state.remove("visitedAt");
         }
-        return map("city", enrichCity(userId, city));
+        Map<String, Object> result = map("city", enrichCity(userId, city));
+        persistSnapshot();
+        return result;
     }
 
     public synchronized Map<String, Object> wishlistCity(String userId, String cityId, boolean wished) {
@@ -282,7 +302,9 @@ public class TravelStore {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
         }
         cityState(userId, cityId).put("wished", wished);
-        return map("city", enrichCity(userId, city));
+        Map<String, Object> result = map("city", enrichCity(userId, city));
+        persistSnapshot();
+        return result;
     }
 
     public synchronized Map<String, Object> wishlistSpot(String userId, String spotId, boolean wished) {
@@ -295,7 +317,9 @@ public class TravelStore {
             state.put("status", wished ? "wishlist" : "available");
             state.put("canCheckIn", spot.get("canCheckIn"));
         }
-        return map("spot", enrichSpot(userId, spot));
+        Map<String, Object> result = map("spot", enrichSpot(userId, spot));
+        persistSnapshot();
+        return result;
     }
 
     public synchronized List<Map<String, Object>> listPlans(String userId) {
@@ -331,6 +355,7 @@ public class TravelStore {
             "updatedAt", Instant.now().toString()
         );
         plans.put(id, plan);
+        persistSnapshot();
         return map("plan", copy(plan));
     }
 
@@ -340,7 +365,9 @@ public class TravelStore {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.PLAN_NOT_FOUND, "Plan not found.", map("planId", planId));
         }
         plans.remove(planId);
-        return map("deleted", true, "planId", planId);
+        Map<String, Object> result = map("deleted", true, "planId", planId);
+        persistSnapshot();
+        return result;
     }
 
     public synchronized List<Map<String, Object>> communityPosts(String keyword) {
@@ -366,6 +393,7 @@ public class TravelStore {
             "createdAt", Instant.now().toString()
         );
         images.put(id, image);
+        persistSnapshot();
         return map(
             "imageId", id,
             "uploadUrl", target.uploadUrl(),
@@ -381,6 +409,7 @@ public class TravelStore {
         if (image != null) {
             image.put("byteSize", size);
             image.put("status", "uploaded");
+            persistSnapshot();
         }
     }
 
@@ -396,7 +425,9 @@ public class TravelStore {
         image.put("linkedId", linkedId);
         image.put("status", "confirmed");
         image.put("updatedAt", Instant.now().toString());
-        return copy(image);
+        Map<String, Object> result = copy(image);
+        persistSnapshot();
+        return result;
     }
 
     public synchronized AiMemoryGenerateInput aiMemoryInput(String userId, String tripId, String style, String extraPrompt) {
@@ -457,7 +488,9 @@ public class TravelStore {
         );
         aiMemories.put(id, memory);
         trips.get(tripId).put("aiMemoryId", id);
-        return copy(memory);
+        Map<String, Object> result = copy(memory);
+        persistSnapshot();
+        return result;
     }
 
     public synchronized Map<String, Object> achievementsWithQuests() {
@@ -465,6 +498,52 @@ public class TravelStore {
             "achievements", achievements.stream().map(this::copy).toList(),
             "quests", quests.stream().map(this::copy).toList()
         );
+    }
+
+    private void persistSnapshot() {
+        materializeUserScopedState();
+        snapshotRepository.save(map(
+            "users", users,
+            "cities", cities,
+            "spots", spots,
+            "trips", trips,
+            "checkIns", checkIns,
+            "aiMemories", aiMemories,
+            "images", images,
+            "plans", plans,
+            "userCityStates", userCityStates,
+            "userSpotStates", userSpotStates,
+            "checkInRequests", checkInRequests,
+            "achievements", achievements,
+            "quests", quests,
+            "communityPosts", communityPosts,
+            "smsCodes", smsCodes
+        ));
+    }
+
+    private void materializeUserScopedState() {
+        for (String userId : users.keySet()) {
+            cities.keySet().forEach(cityId -> cityState(userId, cityId));
+            spots.keySet().forEach(spotId -> spotState(userId, spotId));
+        }
+    }
+
+    private void restoreSnapshot(Map<String, Object> snapshot) {
+        replaceMap(users, snapshot.get("users"));
+        replaceMap(cities, snapshot.get("cities"));
+        replaceMap(spots, snapshot.get("spots"));
+        replaceMap(trips, snapshot.get("trips"));
+        replaceMap(checkIns, snapshot.get("checkIns"));
+        replaceMap(aiMemories, snapshot.get("aiMemories"));
+        replaceMap(images, snapshot.get("images"));
+        replaceMap(plans, snapshot.get("plans"));
+        replaceMap(userCityStates, snapshot.get("userCityStates"));
+        replaceMap(userSpotStates, snapshot.get("userSpotStates"));
+        replaceStringMap(checkInRequests, snapshot.get("checkInRequests"));
+        replaceList(achievements, snapshot.get("achievements"));
+        replaceList(quests, snapshot.get("quests"));
+        replaceList(communityPosts, snapshot.get("communityPosts"));
+        replaceStringMap(smsCodes, snapshot.get("smsCodes"));
     }
 
     private void seed() {
@@ -853,6 +932,36 @@ public class TravelStore {
 
     private List<String> list(String... values) {
         return new ArrayList<>(List.of(values));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void replaceMap(Map<String, Map<String, Object>> target, Object value) {
+        target.clear();
+        if (value instanceof Map<?, ?> source) {
+            source.forEach((key, item) -> {
+                if (item instanceof Map<?, ?> map) {
+                    target.put(String.valueOf(key), copy((Map<String, Object>) map));
+                }
+            });
+        }
+    }
+
+    private void replaceStringMap(Map<String, String> target, Object value) {
+        target.clear();
+        if (value instanceof Map<?, ?> source) {
+            source.forEach((key, item) -> target.put(String.valueOf(key), String.valueOf(item)));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void replaceList(List<Map<String, Object>> target, Object value) {
+        target.clear();
+        if (value instanceof List<?> source) {
+            source.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> copy((Map<String, Object>) item))
+                .forEach(target::add);
+        }
     }
 
     private Map<String, Object> map(Object... entries) {
