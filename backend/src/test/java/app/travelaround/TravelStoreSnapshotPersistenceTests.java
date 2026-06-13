@@ -22,6 +22,37 @@ class TravelStoreSnapshotPersistenceTests {
     private JdbcTemplate jdbcTemplate;
 
     @Test
+    void foundationReadPathUsesRelationalTables() {
+        jdbcTemplate.update("update users set phone = ? where id = ?", "13800000000", "u-nicola");
+        jdbcTemplate.update("update cities set name = ? where id = ?", "杭州DB", "hangzhou");
+        jdbcTemplate.update("update spots set name = ? where id = ?", "断桥DB", "broken-bridge");
+        jdbcTemplate.update(
+            "update user_city_states set wished = true where user_id = ? and city_id = ?",
+            "u-nicola",
+            "suzhou"
+        );
+        jdbcTemplate.update(
+            "update user_spot_states set status = ?, can_check_in = false where user_id = ? and spot_id = ?",
+            "wishlist",
+            "u-nicola",
+            "lingyin-temple"
+        );
+
+        Map<String, Object> user = store.user("u-nicola");
+        Map<String, Object> city = store.city("u-nicola", "hangzhou");
+        Map<String, Object> wishedCity = store.city("u-nicola", "suzhou");
+        Map<String, Object> spot = store.spot("u-nicola", "broken-bridge");
+        Map<String, Object> wishedSpot = store.spot("u-nicola", "lingyin-temple");
+
+        assertEquals("13800000000", user.get("phone"));
+        assertEquals("杭州DB", city.get("name"));
+        assertEquals(true, wishedCity.get("wished"));
+        assertEquals("断桥DB", spot.get("name"));
+        assertEquals("wishlist", wishedSpot.get("status"));
+        assertEquals(false, wishedSpot.get("canCheckIn"));
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void mutationsAreSavedAndCanBeRestoredFromDatabaseSnapshot() {
         store.wishlistCity("u-nicola", "suzhou", true);

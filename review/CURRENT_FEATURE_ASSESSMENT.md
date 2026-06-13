@@ -5,7 +5,7 @@
 开发基线：`ca7c9d6 Implement phase 5 wishlist and plans`
 评估范围：前端 Expo App、API 模式、Spring Boot 后端阶段 1-5、真机验收风险。
 
-> 2026-06-13 追加：持久化第一切片已实现，当前采用 `travel_store_snapshots` 数据库快照保存/恢复运行态，并同步投影写入 V2 业务表；完整 MyBatis-Plus 分域读写仍是后续任务。
+> 2026-06-13 追加：持久化第一切片已实现，当前采用 `travel_store_snapshots` 数据库快照保存/恢复运行态，并同步投影写入 V2 业务表；阶段一 mapper 迁移已开始，users/cities/spots/user states 会通过 MyBatis 从 V2 表刷新。
 
 ## 1. 结论
 
@@ -14,7 +14,7 @@
 - 前端页面、导航、地图、城市/景点/行程/计划/AI 回忆等主流程基本完整。
 - API 模式已经能连接本地 Spring Boot 后端。
 - 后端已实现阶段 1-5：鉴权、读链路、打卡写链路、图片上传、AI 回忆、心愿单、手动点亮、计划。
-- 但后端请求处理仍由 `TravelStore` 承担；当前已新增数据库快照持久化和 V2 业务表关系投影，MyBatis-Plus mapper/service 分域迁移还没有完成。
+- 但后端请求处理仍由 `TravelStore` 承担；当前已新增数据库快照持久化、V2 业务表关系投影，并把 users/cities/spots/user states 的读链路接入 MyBatis mapper；细粒度写 mapper 和剩余领域迁移还没有完成。
 
 因此当前适合做“产品体验验收”“接口闭环验收”和“重启后运行态恢复验收”，但还不适合宣称“生产级分域持久化完成”。
 
@@ -65,11 +65,11 @@
 
 当前后端虽然有 Flyway schema，但业务请求处理仍然走 `TravelStore`：
 
-- 用户、城市、景点、行程、打卡、AI 回忆、计划、社区数据仍先进入内存 Map/List。
+- 用户、城市、景点、用户城市/景点状态会从 V2 表经 MyBatis 刷新到运行态；行程、打卡、AI 回忆、计划、社区等仍主要由内存 Map/List 组装。
 - 已新增 `travel_store_snapshots`，写操作会保存完整运行态快照，服务启动时可从数据库恢复。
 - 每次快照保存会同步改写 V2 规范业务表，便于检查 users/cities/spots/user states/trips/check-ins/images/AI memories/plans 等关系数据。
-- 主链路运行时读写仍未迁入 MyBatis-Plus 分域 mapper/service。
-- MyBatis-Plus 已作为技术方向引入，但 mapper/service 尚未接入主链路。
+- User/Profile、City/Spot、User State 的读链路已接入 `TravelStoreFoundationMapper`。
+- 主链路写操作仍主要通过快照 + 关系表投影落库，尚未迁入细粒度 MyBatis-Plus 分域 mapper/service。
 
 ### 3.2 登录仍是模拟链路
 
@@ -100,13 +100,13 @@
 
 ## 4. 接口已通但未逐表持久化的范围
 
-这些接口已经能被前端 API 模式调用，也能完成业务行为；当前会写入数据库快照，并同步投影到规范业务表，但运行时主链路还没有迁移为逐表 mapper 读写：
+这些接口已经能被前端 API 模式调用，也能完成业务行为；当前会写入数据库快照，并同步投影到规范业务表。Users/Cities/Spots/User States 的读链路已接 mapper，其他运行时主链路还没有迁移为逐表 mapper 读写：
 
 | 模块                  | 接口状态 | 当前持久化状态 | 仍待完成                                                      |
 | --------------------- | -------- | -------------- | ------------------------------------------------------------- |
-| Auth/User             | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `users` mapper，补 token refresh、guest 合并。               |
-| Cities/Spots          | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `cities`、`spots` mapper 和 seed。                          |
-| User city/spot states | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `user_city_states`、`user_spot_states`。                    |
+| Auth/User             | 已通     | MyBatis 读 + 快照/V2 投影写 | 继续迁移细粒度 `users` write mapper，补 token refresh、guest 合并。               |
+| Cities/Spots          | 已通     | MyBatis 读 + 快照/V2 投影写 | 继续迁移 seed 和细粒度 place service。                                            |
+| User city/spot states | 已通     | MyBatis 读 + 快照/V2 投影写 | 继续迁移 wishlist/manual-light/spot state 的细粒度 write mapper。                 |
 | Trips                 | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `trips`、`trip_cities`、`trip_spots`、`trip_check_ins`。    |
 | Check-ins             | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `check_ins`，补幂等唯一约束。                               |
 | Images                | 已通     | 快照 + V2 表投影 | 迁移运行时读写到 `images` metadata；MinIO 继续只负责对象文件。               |
@@ -206,7 +206,7 @@ EXPO_PUBLIC_API_AUTH_MODE=guest
 
 当前可以接受为：
 
-> TravelAround 已完成前端 MVP 与后端阶段 1-5 的 API 闭环，支持真机 API 模式体验验收；后端已完成持久化第一切片（快照恢复 + V2 业务表投影），但尚未完成生产意义上的 MyBatis-Plus 分域读写、真实短信、真实 AI key 配置验收、完整社区社交和生产地图 SDK。
+> TravelAround 已完成前端 MVP 与后端阶段 1-5 的 API 闭环，支持真机 API 模式体验验收；后端已完成持久化第一切片（快照恢复 + V2 业务表投影）并启动阶段一 mapper 读链路，但尚未完成生产意义上的细粒度 MyBatis-Plus 分域写入、真实短信、真实 AI key 配置验收、完整社区社交和生产地图 SDK。
 
 不建议当前接受为：
 
@@ -214,4 +214,4 @@ EXPO_PUBLIC_API_AUTH_MODE=guest
 
 更准确的状态是：
 
-> 真实后端骨架与 API 行为已完成，持久化第一切片已落地，下一阶段关键任务是把运行时主链路迁移到分域 mapper/service。
+> 真实后端骨架与 API 行为已完成，持久化第一切片和 foundation mapper 读链路已落地，下一阶段关键任务是把写链路和剩余领域迁移到分域 mapper/service。

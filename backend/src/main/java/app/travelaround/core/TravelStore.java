@@ -14,12 +14,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class TravelStore {
     private final TravelStoreSnapshotRepository snapshotRepository;
+    private final TravelStoreFoundationRepository foundationRepository;
     private final Map<String, Map<String, Object>> users = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> cities = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> spots = new LinkedHashMap<>();
@@ -36,14 +38,25 @@ public class TravelStore {
     private final List<Map<String, Object>> communityPosts = new ArrayList<>();
     private final Map<String, String> smsCodes = new LinkedHashMap<>();
 
+    @Autowired
+    public TravelStore(TravelStoreSnapshotRepository snapshotRepository, TravelStoreFoundationRepository foundationRepository) {
+        this.snapshotRepository = snapshotRepository;
+        this.foundationRepository = foundationRepository;
+        seed();
+    }
+
     public TravelStore(TravelStoreSnapshotRepository snapshotRepository) {
         this.snapshotRepository = snapshotRepository;
+        this.foundationRepository = null;
         seed();
     }
 
     @PostConstruct
     public synchronized void restoreOrCreateSnapshot() {
-        snapshotRepository.load().ifPresentOrElse(this::restoreSnapshot, this::persistSnapshot);
+        snapshotRepository.load().ifPresentOrElse(snapshot -> {
+            restoreSnapshot(snapshot);
+            persistSnapshot();
+        }, this::persistSnapshot);
     }
 
     public synchronized Map<String, Object> ensureGuestUser() {
@@ -57,6 +70,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> loginByPhone(String phone, String code) {
+        refreshFoundationFromDatabase();
         String expected = smsCodes.getOrDefault(phone, "123456");
         if (!expected.equals(code)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR, "Invalid verification code.");
@@ -73,6 +87,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> user(String userId) {
+        refreshFoundationFromDatabase();
         Map<String, Object> user = users.get(userId);
         if (user == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.USER_NOT_FOUND, "User not found.");
@@ -82,6 +97,7 @@ public class TravelStore {
     }
 
     public synchronized List<Map<String, Object>> listCities(String userId, String status, String keyword) {
+        refreshFoundationFromDatabase();
         List<Map<String, Object>> result = new ArrayList<>();
         String normalizedKeyword = normalize(keyword);
         for (Map<String, Object> city : cities.values()) {
@@ -97,6 +113,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> city(String userId, String cityId) {
+        refreshFoundationFromDatabase();
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
@@ -105,6 +122,7 @@ public class TravelStore {
     }
 
     public synchronized List<Map<String, Object>> listSpots(String userId, String cityId, String status, String keyword) {
+        refreshFoundationFromDatabase();
         List<Map<String, Object>> result = new ArrayList<>();
         String normalizedKeyword = normalize(keyword);
         for (Map<String, Object> spot : spots.values()) {
@@ -123,6 +141,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> spot(String userId, String spotId) {
+        refreshFoundationFromDatabase();
         Map<String, Object> spot = spots.get(spotId);
         if (spot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
@@ -131,6 +150,7 @@ public class TravelStore {
     }
 
     public synchronized List<Map<String, Object>> nearbySpots(String userId, double latitude, double longitude, int radiusMeters) {
+        refreshFoundationFromDatabase();
         List<Map<String, Object>> result = new ArrayList<>();
         for (Map<String, Object> spot : spots.values()) {
             Map<String, Object> coordinates = mapValue(spot.get("coordinates"));
@@ -179,6 +199,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> createTrip(String userId, String title, String cityId, String startDate, String endDate, String visibility) {
+        refreshFoundationFromDatabase();
         city(userId, cityId);
         long days = ChronoUnit.DAYS.between(LocalDate.parse(startDate), LocalDate.parse(endDate)) + 1;
         if (days <= 0) {
@@ -209,6 +230,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> createCheckIn(String userId, String spotId, String tripId, String type, String moodText, Map<String, Object> location, List<String> photoIds, String visitedAt, String clientRequestId) {
+        refreshFoundationFromDatabase();
         String idempotencyKey = clientRequestId == null || clientRequestId.isBlank() ? null : userId + ":" + clientRequestId;
         if (idempotencyKey != null && checkInRequests.containsKey(idempotencyKey)) {
             Map<String, Object> existing = checkIns.get(checkInRequests.get(idempotencyKey));
@@ -279,6 +301,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> manualLight(String userId, String cityId, boolean lit) {
+        refreshFoundationFromDatabase();
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
@@ -297,6 +320,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> wishlistCity(String userId, String cityId, boolean wished) {
+        refreshFoundationFromDatabase();
         Map<String, Object> city = cities.get(cityId);
         if (city == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
@@ -308,6 +332,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> wishlistSpot(String userId, String spotId, boolean wished) {
+        refreshFoundationFromDatabase();
         Map<String, Object> spot = spots.get(spotId);
         if (spot == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.SPOT_NOT_FOUND, "Spot not found.", map("spotId", spotId));
@@ -544,6 +569,18 @@ public class TravelStore {
         replaceList(quests, snapshot.get("quests"));
         replaceList(communityPosts, snapshot.get("communityPosts"));
         replaceStringMap(smsCodes, snapshot.get("smsCodes"));
+    }
+
+    private void refreshFoundationFromDatabase() {
+        if (foundationRepository == null || !foundationRepository.hasFoundationRows()) {
+            return;
+        }
+        Map<String, Object> foundation = foundationRepository.loadFoundation();
+        mergeMap(users, foundation.get("users"));
+        mergeMap(cities, foundation.get("cities"));
+        mergeMap(spots, foundation.get("spots"));
+        replaceMap(userCityStates, foundation.get("userCityStates"));
+        replaceMap(userSpotStates, foundation.get("userSpotStates"));
     }
 
     private void seed() {
@@ -941,6 +978,23 @@ public class TravelStore {
             source.forEach((key, item) -> {
                 if (item instanceof Map<?, ?> map) {
                     target.put(String.valueOf(key), copy((Map<String, Object>) map));
+                }
+            });
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeMap(Map<String, Map<String, Object>> target, Object value) {
+        Map<String, Map<String, Object>> previous = new LinkedHashMap<>(target);
+        target.clear();
+        if (value instanceof Map<?, ?> source) {
+            source.forEach((key, item) -> {
+                if (item instanceof Map<?, ?> map) {
+                    Map<String, Object> merged = previous.containsKey(String.valueOf(key))
+                        ? copy(previous.get(String.valueOf(key)))
+                        : new LinkedHashMap<>();
+                    merged.putAll(copy((Map<String, Object>) map));
+                    target.put(String.valueOf(key), merged);
                 }
             });
         }
