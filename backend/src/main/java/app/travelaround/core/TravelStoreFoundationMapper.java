@@ -6,7 +6,6 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 @Mapper
 interface TravelStoreFoundationMapper {
@@ -57,12 +56,18 @@ interface TravelStoreFoundationMapper {
         """)
     List<TravelStoreFoundationRows.UserSpotStateRow> listUserSpotStates();
 
-    @Update("""
-        update users
-        set phone = #{phone}, updated_at = current_timestamp
-        where id = #{userId}
+    @Insert("""
+        insert into users (id, nickname, avatar_url, phone, level, title, updated_at)
+        values (#{userId}, #{nickname}, #{avatarUrl}, #{phone}, #{level}, #{title}, current_timestamp)
         """)
-    void updateUserPhone(@Param("userId") String userId, @Param("phone") String phone);
+    void insertUser(
+        @Param("userId") String userId,
+        @Param("nickname") String nickname,
+        @Param("avatarUrl") String avatarUrl,
+        @Param("phone") String phone,
+        @Param("level") String level,
+        @Param("title") String title
+    );
 
     @Delete("delete from user_city_states where user_id = #{userId} and city_id = #{cityId}")
     void deleteUserCityState(@Param("userId") String userId, @Param("cityId") String cityId);

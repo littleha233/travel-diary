@@ -34,8 +34,15 @@ public class TravelStoreFoundationRepository {
         );
     }
 
-    public void saveUserPhone(String userId, String phone) {
-        mapper.updateUserPhone(userId, phone);
+    public void saveUser(Map<String, Object> user) {
+        mapper.insertUser(
+            text(user.get("id")),
+            text(user.get("nickname")),
+            text(user.get("avatarUrl")),
+            text(user.get("phone")),
+            text(user.get("level")),
+            text(user.get("title"))
+        );
     }
 
     @Transactional

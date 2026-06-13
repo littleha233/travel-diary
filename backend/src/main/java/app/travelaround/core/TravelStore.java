@@ -71,7 +71,14 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> ensureGuestUser() {
-        return user("u-nicola");
+        refreshFoundationFromDatabase();
+        String userId = "u-guest-" + UUID.randomUUID();
+        Map<String, Object> user = newUser(userId, "游客" + userId.substring(userId.length() - 4), null);
+        users.put(userId, user);
+        saveUser(user);
+        refreshUserStats(user);
+        persistSnapshot();
+        return copy(user);
     }
 
     public synchronized Map<String, Object> sendSmsCode(String phone) {
@@ -86,14 +93,15 @@ public class TravelStore {
         if (!expected.equals(code)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR, "Invalid verification code.");
         }
-        Map<String, Object> user = users.get("u-nicola");
+        Map<String, Object> user = findUserByPhone(phone);
         if (user == null) {
-            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.USER_NOT_FOUND, "User not found.");
+            String userId = userIdForPhone(phone);
+            user = newUser(userId, "用户" + phoneSuffix(phone), phone);
+            users.put(userId, user);
+            saveUser(user);
         }
-        user.put("phone", phone);
         refreshUserStats(user);
         Map<String, Object> result = copy(user);
-        saveUserPhone(user, phone);
         persistSnapshot();
         return result;
     }
@@ -645,9 +653,9 @@ public class TravelStore {
         mergeList(quests, feature.get("quests"));
     }
 
-    private void saveUserPhone(Map<String, Object> user, String phone) {
+    private void saveUser(Map<String, Object> user) {
         if (foundationRepository != null) {
-            foundationRepository.saveUserPhone(String.valueOf(user.get("id")), phone);
+            foundationRepository.saveUser(user);
         }
     }
 
@@ -844,6 +852,47 @@ public class TravelStore {
         communityPosts.add(map("id", "memory-post-hangzhou", "type", "ai-memory", "title", "在杭州，把时间走慢", "subtitle", "36 张照片 · AI 回忆", "author", "小森", "imageUrl", "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=600&q=80", "linkedId", "memory-hangzhou"));
         communityPosts.add(map("id", "quest-west-lake", "type", "quest", "title", "西湖十景继续收集", "subtitle", "4 / 10 已点亮 · 完成解锁徽章", "author", "TravelAround", "linkedId", "west-lake-ten", "actionLabel", "查看任务", "progress", 40));
         communityPosts.add(map("id", "achievement-west-lake", "type", "achievement", "title", "小森完成了「西湖十景」", "subtitle", "10 / 10 已点亮 · 成就分享", "author", "小森", "linkedId", "west-lake-collector", "actionLabel", "查看成就", "progress", 100));
+    }
+
+    private Map<String, Object> newUser(String userId, String nickname, String phone) {
+        return map(
+            "id", userId,
+            "nickname", nickname,
+            "avatarUrl", null,
+            "phone", phone,
+            "level", "Lv.1",
+            "title", "旅行新手"
+        );
+    }
+
+    private Map<String, Object> findUserByPhone(String phone) {
+        for (Map<String, Object> user : users.values()) {
+            if (phone.equals(user.get("phone"))) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    private String userIdForPhone(String phone) {
+        String normalized = phone.replaceAll("[^0-9A-Za-z]", "").toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            normalized = "phone";
+        }
+        String hash = Integer.toUnsignedString(phone.hashCode(), 36);
+        int maxNormalizedLength = Math.max(1, 64 - "u-phone--".length() - hash.length());
+        if (normalized.length() > maxNormalizedLength) {
+            normalized = normalized.substring(0, maxNormalizedLength);
+        }
+        return "u-phone-" + normalized + "-" + hash;
+    }
+
+    private String phoneSuffix(String phone) {
+        String digits = phone.replaceAll("\\D", "");
+        if (digits.length() >= 4) {
+            return digits.substring(digits.length() - 4);
+        }
+        return Integer.toUnsignedString(phone.hashCode(), 36);
     }
 
     private void addCity(String id, String name, String province, boolean lit, boolean wished, String visitedAt, double latitude, double longitude, int mapX, int mapY, String coverUrl, String description, List<String> spotIds, List<String> tags) {
