@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 public class TravelStore {
     private final TravelStoreSnapshotRepository snapshotRepository;
     private final TravelStoreFoundationRepository foundationRepository;
+    private final TravelStoreRuntimeRepository runtimeRepository;
     private final Map<String, Map<String, Object>> users = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> cities = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> spots = new LinkedHashMap<>();
@@ -39,15 +40,21 @@ public class TravelStore {
     private final Map<String, String> smsCodes = new LinkedHashMap<>();
 
     @Autowired
-    public TravelStore(TravelStoreSnapshotRepository snapshotRepository, TravelStoreFoundationRepository foundationRepository) {
+    public TravelStore(
+        TravelStoreSnapshotRepository snapshotRepository,
+        TravelStoreFoundationRepository foundationRepository,
+        TravelStoreRuntimeRepository runtimeRepository
+    ) {
         this.snapshotRepository = snapshotRepository;
         this.foundationRepository = foundationRepository;
+        this.runtimeRepository = runtimeRepository;
         seed();
     }
 
     public TravelStore(TravelStoreSnapshotRepository snapshotRepository) {
         this.snapshotRepository = snapshotRepository;
         this.foundationRepository = null;
+        this.runtimeRepository = null;
         seed();
     }
 
@@ -82,6 +89,7 @@ public class TravelStore {
         user.put("phone", phone);
         refreshUserStats(user);
         Map<String, Object> result = copy(user);
+        saveUserPhone(user, phone);
         persistSnapshot();
         return result;
     }
@@ -167,6 +175,7 @@ public class TravelStore {
     }
 
     public synchronized List<Map<String, Object>> listTrips(String userId) {
+        refreshTripCheckInFromDatabase();
         return trips.values().stream()
             .filter(trip -> userId.equals(trip.get("userId")))
             .map(this::copy)
@@ -174,6 +183,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> trip(String userId, String tripId) {
+        refreshTripCheckInFromDatabase();
         Map<String, Object> trip = trips.get(tripId);
         if (trip == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.TRIP_NOT_FOUND, "Trip not found.", map("tripId", tripId));
@@ -185,6 +195,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> tripDetail(String userId, String tripId) {
+        refreshTripCheckInFromDatabase();
         Map<String, Object> trip = trip(userId, tripId);
         List<Map<String, Object>> tripCheckIns = checkIns.values().stream()
             .filter(item -> tripId.equals(item.get("tripId")) && userId.equals(item.get("userId")))
@@ -225,6 +236,7 @@ public class TravelStore {
             "updatedAt", Instant.now().toString()
         );
         trips.put(id, trip);
+        saveTrip(trip);
         persistSnapshot();
         return map("trip", copy(trip));
     }
@@ -277,6 +289,7 @@ public class TravelStore {
         if (idempotencyKey != null) {
             checkInRequests.put(idempotencyKey, id);
         }
+        saveCheckIn(checkIn, clientRequestId);
 
         Map<String, Object> spotState = spotState(userId, spotId);
         spotState.put("status", "lit");
@@ -285,6 +298,8 @@ public class TravelStore {
         Map<String, Object> cityState = cityState(userId, cityId);
         cityState.put("lit", true);
         cityState.put("visitedAt", LocalDate.now().toString());
+        saveUserSpotState(spotState);
+        saveUserCityState(cityState);
 
         if (tripId != null) {
             Map<String, Object> trip = trips.get(tripId);
@@ -293,6 +308,7 @@ public class TravelStore {
             trip.put("photoCount", ((Number) trip.getOrDefault("photoCount", 0)).intValue() + (photoIds == null ? 0 : photoIds.size()));
             trip.put("updatedAt", Instant.now().toString());
             updateTripSummary(trip);
+            saveTrip(trip);
         }
         List<Map<String, Object>> unlockedAchievements = refreshAchievementProgress(userId);
         Map<String, Object> result = checkInMutationResult(checkIn, unlockedAchievements);
@@ -314,6 +330,7 @@ public class TravelStore {
         } else if (!hasLitSpot(userId, cityId)) {
             state.remove("visitedAt");
         }
+        saveUserCityState(state);
         Map<String, Object> result = map("city", enrichCity(userId, city));
         persistSnapshot();
         return result;
@@ -326,6 +343,7 @@ public class TravelStore {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.CITY_NOT_FOUND, "City not found.", map("cityId", cityId));
         }
         cityState(userId, cityId).put("wished", wished);
+        saveUserCityState(cityState(userId, cityId));
         Map<String, Object> result = map("city", enrichCity(userId, city));
         persistSnapshot();
         return result;
@@ -342,6 +360,7 @@ public class TravelStore {
             state.put("status", wished ? "wishlist" : "available");
             state.put("canCheckIn", spot.get("canCheckIn"));
         }
+        saveUserSpotState(state);
         Map<String, Object> result = map("spot", enrichSpot(userId, spot));
         persistSnapshot();
         return result;
@@ -456,6 +475,7 @@ public class TravelStore {
     }
 
     public synchronized AiMemoryGenerateInput aiMemoryInput(String userId, String tripId, String style, String extraPrompt) {
+        refreshTripCheckInFromDatabase();
         Map<String, Object> trip = trip(userId, tripId);
         List<String> spotIds = stringList(trip.get("spotIds"));
         if (spotIds.isEmpty()) {
@@ -581,6 +601,46 @@ public class TravelStore {
         mergeMap(spots, foundation.get("spots"));
         replaceMap(userCityStates, foundation.get("userCityStates"));
         replaceMap(userSpotStates, foundation.get("userSpotStates"));
+    }
+
+    private void refreshTripCheckInFromDatabase() {
+        if (runtimeRepository == null || !runtimeRepository.hasRuntimeRows()) {
+            return;
+        }
+        Map<String, Object> runtime = runtimeRepository.loadTripCheckInState();
+        mergeMap(trips, runtime.get("trips"));
+        mergeMap(checkIns, runtime.get("checkIns"));
+        replaceStringMap(checkInRequests, runtime.get("checkInRequests"));
+    }
+
+    private void saveUserPhone(Map<String, Object> user, String phone) {
+        if (foundationRepository != null) {
+            foundationRepository.saveUserPhone(String.valueOf(user.get("id")), phone);
+        }
+    }
+
+    private void saveUserCityState(Map<String, Object> state) {
+        if (foundationRepository != null) {
+            foundationRepository.saveUserCityState(state);
+        }
+    }
+
+    private void saveUserSpotState(Map<String, Object> state) {
+        if (foundationRepository != null) {
+            foundationRepository.saveUserSpotState(state);
+        }
+    }
+
+    private void saveTrip(Map<String, Object> trip) {
+        if (runtimeRepository != null) {
+            runtimeRepository.saveTrip(trip);
+        }
+    }
+
+    private void saveCheckIn(Map<String, Object> checkIn, String clientRequestId) {
+        if (runtimeRepository != null) {
+            runtimeRepository.saveCheckIn(checkIn, clientRequestId);
+        }
     }
 
     private void seed() {

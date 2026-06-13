@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class TravelStoreFoundationRepository {
@@ -30,6 +31,38 @@ public class TravelStoreFoundationRepository {
             "spots", spots(),
             "userCityStates", userCityStates(),
             "userSpotStates", userSpotStates()
+        );
+    }
+
+    public void saveUserPhone(String userId, String phone) {
+        mapper.updateUserPhone(userId, phone);
+    }
+
+    @Transactional
+    public void saveUserCityState(Map<String, Object> state) {
+        String userId = text(state.get("userId"));
+        String cityId = text(state.get("cityId"));
+        mapper.deleteUserCityState(userId, cityId);
+        mapper.insertUserCityState(
+            userId,
+            cityId,
+            Boolean.TRUE.equals(state.get("lit")),
+            Boolean.TRUE.equals(state.get("manuallyLit")),
+            Boolean.TRUE.equals(state.get("wished")),
+            text(state.get("visitedAt"))
+        );
+    }
+
+    @Transactional
+    public void saveUserSpotState(Map<String, Object> state) {
+        String userId = text(state.get("userId"));
+        String spotId = text(state.get("spotId"));
+        mapper.deleteUserSpotState(userId, spotId);
+        mapper.insertUserSpotState(
+            userId,
+            spotId,
+            text(state.get("status")),
+            Boolean.TRUE.equals(state.get("canCheckIn"))
         );
     }
 
@@ -123,6 +156,10 @@ public class TravelStoreFoundationRepository {
 
     private String dateText(LocalDate value) {
         return value.toString();
+    }
+
+    private String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private String userKey(String userId, String id) {

@@ -2,7 +2,7 @@
 
 Version: Backend MVP  
 Status: Implemented for the current frontend API-mode loop under `backend/`  
-Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes, and Phase 5 wishlist/manual-light/plans are implemented with user-scoped runtime state. Persistence now saves/restores runtime state through a database snapshot, projects it into the V2 core tables, and refreshes users/cities/spots/user state through MyBatis mapper reads; production-grade domain write mappers, remaining domain reads, and SMS are still follow-up work.
+Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes, and Phase 5 wishlist/manual-light/plans are implemented with user-scoped runtime state. Persistence now saves/restores runtime state through a database snapshot, projects it into the V2 core tables, and uses MyBatis mapper reads/writes for users, cities/spots, user state, trips, and check-ins; remaining domains and SMS are still follow-up work.
 
 ## 1. Design Goals
 

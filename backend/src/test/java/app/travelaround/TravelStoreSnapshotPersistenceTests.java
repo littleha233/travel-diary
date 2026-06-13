@@ -53,6 +53,85 @@ class TravelStoreSnapshotPersistenceTests {
     }
 
     @Test
+    void userCityStateIsIsolatedByUser() {
+        jdbcTemplate.update(
+            "insert into users (id, nickname, avatar_url, phone, level, title) values (?, ?, ?, ?, ?, ?)",
+            "u-alex",
+            "Alex",
+            null,
+            null,
+            "Lv.1",
+            "旅行新手"
+        );
+
+        store.wishlistCity("u-alex", "xiamen", true);
+
+        Map<String, Object> alexCity = store.city("u-alex", "xiamen");
+        Map<String, Object> nicolaCity = store.city("u-nicola", "xiamen");
+
+        assertEquals(true, alexCity.get("wished"));
+        assertEquals(false, nicolaCity.get("wished"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void tripAndCheckInReadPathUsesRelationalTables() {
+        jdbcTemplate.update(
+            "insert into trips (id, user_id, title, start_date, end_date, days, photo_count, cover_url, summary, visibility) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "db-trip",
+            "u-nicola",
+            "DB 旅行",
+            "2026-06-20",
+            "2026-06-21",
+            2,
+            0,
+            "https://example.com/db-trip.jpg",
+            "2 天 · 1 座城市 · 1 个景点 · 0 张照片",
+            "private"
+        );
+        jdbcTemplate.update("insert into trip_cities (trip_id, city_id, sort_order) values (?, ?, ?)", "db-trip", "hangzhou", 0);
+        jdbcTemplate.update("insert into trip_spots (trip_id, spot_id, sort_order) values (?, ?, ?)", "db-trip", "broken-bridge", 0);
+        jdbcTemplate.update(
+            "insert into check_ins (id, user_id, city_id, spot_id, trip_id, type, visited_at, mood_text, distance_meters, photo_ids, client_request_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "ci-db-runtime",
+            "u-nicola",
+            "hangzhou",
+            "broken-bridge",
+            "db-trip",
+            "manual",
+            "2026-06-20T09:00:00Z",
+            "DB 读链路",
+            0,
+            "[]",
+            "db-runtime"
+        );
+        jdbcTemplate.update("insert into trip_check_ins (trip_id, check_in_id) values (?, ?)", "db-trip", "ci-db-runtime");
+
+        Map<String, Object> detail = store.tripDetail("u-nicola", "db-trip");
+        Map<String, Object> trip = (Map<String, Object>) detail.get("trip");
+        java.util.List<Map<String, Object>> checkIns = (java.util.List<Map<String, Object>>) detail.get("checkIns");
+
+        assertEquals("DB 旅行", trip.get("title"));
+        assertEquals("ci-db-runtime", checkIns.get(0).get("id"));
+        assertEquals("DB 读链路", checkIns.get(0).get("moodText"));
+    }
+
+    @Test
+    void duplicateClientRequestIdDoesNotCreateSecondCheckInRow() {
+        store.createCheckIn("u-nicola", "broken-bridge", null, "manual", "first", null, null, "2026-06-22T10:00:00.000Z", "unique-db-client");
+        store.createCheckIn("u-nicola", "broken-bridge", null, "manual", "second", null, null, "2026-06-22T10:05:00.000Z", "unique-db-client");
+
+        Integer count = jdbcTemplate.queryForObject(
+            "select count(*) from check_ins where user_id = ? and client_request_id = ?",
+            Integer.class,
+            "u-nicola",
+            "unique-db-client"
+        );
+
+        assertEquals(1, count);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void mutationsAreSavedAndCanBeRestoredFromDatabaseSnapshot() {
         store.wishlistCity("u-nicola", "suzhou", true);

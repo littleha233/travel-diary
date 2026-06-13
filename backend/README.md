@@ -19,10 +19,10 @@ The default profile uses an in-memory H2 database so the API can run without Doc
 - Phase 4 is implemented for AI memories: `/ai-memories/generate` now runs through a backend `AiMemoryProvider` abstraction with `mock`, `anthropic`, and `deepseek` providers, server-side API keys, retry handling, and safe fallback drafts.
 - Phase 5 is implemented for wishlist/manual-light/plans: city and spot state is now resolved per user, wishlist/manual-light mutations are user-scoped, and plans support list/detail/weekend-template/delete flows.
 - Persistence phase 6a is implemented as a runtime database snapshot plus relational projection: the service writes the full `TravelStore` state to `travel_store_snapshots`, mirrors it into the V2 core tables after mutations, and restores the runtime state on startup.
-- Persistence phase 6b starts the mapper migration: users, cities, spots, and per-user city/spot state are refreshed from MyBatis mapper reads against the V2 tables before the relevant API responses are assembled.
+- Persistence phase 6b starts the mapper migration: users, cities, spots, per-user city/spot state, trips, and check-ins are refreshed from MyBatis mapper reads against the V2 tables before the relevant API responses are assembled. User phone binding, user city/spot state mutations, trip creation, and check-in creation also have fine-grained mapper writes.
 - Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
 
-The service still uses `TravelStore` as the request-handling facade. Runtime state now persists through a database snapshot and is mirrored into normalized tables for inspection and migration continuity. The foundation read path has started using MyBatis; switching all write operations and remaining domains to fine-grained domain mappers is the next persistence step.
+The service still uses `TravelStore` as the request-handling facade. Runtime state now persists through a database snapshot and is mirrored into normalized tables for inspection and migration continuity. The phase 1 foundation and trip/check-in paths have started using MyBatis reads/writes; switching the remaining domains to fine-grained domain mappers is the next persistence step.
 
 ## Persistence
 
@@ -34,9 +34,11 @@ Current behavior:
 - On later startups, the service restores users, places, trips, check-ins, images, AI memories, plans, achievements, quests, community posts, and user city/spot state from the snapshot.
 - Mutations such as login phone binding, trip creation, check-in, wishlist/manual-light, image metadata changes, AI memory save, and plan changes write through to the snapshot.
 - Each snapshot save also rewrites the V2 relational projection tables such as `users`, `cities`, `spots`, `user_city_states`, `user_spot_states`, `trips`, `check_ins`, `images`, `ai_memories`, `plans`, achievements, quests, and `community_posts`.
-- User/profile, city, spot, nearby spot, trip creation validation, check-in validation, wishlist, and manual-light flows refresh users, places, and user state from the relational tables through `TravelStoreFoundationMapper`.
+- User/profile, city, spot, nearby spot, trip creation validation, check-in validation, wishlist, manual-light, trip, and check-in flows refresh phase 1 state from the relational tables through MyBatis mappers.
+- User phone binding, user city/spot state changes, trip creation, and check-in creation write directly through MyBatis mapper methods before the compatibility snapshot/projection save runs.
+- Migration `V4__check_in_idempotency.sql` adds a unique index for `(user_id, client_request_id)` on `check_ins`.
 
-This is an incremental persistence step designed to preserve the current API behavior while keeping the mapper migration small. Production-grade normalized persistence should move the remaining runtime reads and all write operations from the snapshot-backed facade into domain mappers/services over the existing Flyway tables.
+This is an incremental persistence step designed to preserve the current API behavior while keeping the mapper migration small. Production-grade normalized persistence should move the remaining domains from the snapshot-backed facade into domain mappers/services over the existing Flyway tables.
 
 ## AI Provider
 
