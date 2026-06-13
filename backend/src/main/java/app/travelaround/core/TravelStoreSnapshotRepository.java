@@ -306,7 +306,7 @@ public class TravelStoreSnapshotRepository {
         posts.forEach(post -> jdbcTemplate.update(
             "insert into community_posts (id, author_id, type, title, subtitle, body, image_url, linked_id, action_label, progress, status) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             text(post.get("id")),
-            text(firstPresent(post.get("authorId"), "u-nicola")),
+            text(firstPresent(post.get("authorId"), post.get("author"), "u-nicola")),
             text(post.get("type")),
             text(post.get("title")),
             text(post.get("subtitle")),

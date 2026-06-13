@@ -21,9 +21,10 @@ The default profile uses an in-memory H2 database so the API can run without Doc
 - Persistence phase 6a is implemented as a runtime database snapshot plus relational projection: the service writes the full `TravelStore` state to `travel_store_snapshots`, mirrors it into the V2 core tables after mutations, and restores the runtime state on startup.
 - Persistence phase 6b starts the mapper migration: users, cities, spots, per-user city/spot state, trips, and check-ins are refreshed from MyBatis mapper reads against the V2 tables before the relevant API responses are assembled. User phone binding, user city/spot state mutations, trip creation, and check-in creation also have fine-grained mapper writes.
 - Persistence phase 6c extends the mapper migration to images, AI memories, plans, achievements, and theme quests. Image metadata, AI memory saves, plan create/delete, and user achievement unlocks now have fine-grained mapper writes.
-- Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, and community posts.
+- Persistence phase 6d moves Community Feed reads to the `community_posts` table through a MyBatis mapper. Likes, saves, and comments now have user-scoped write tables and mapper methods; full post publishing and follows are still future work.
+- Flyway schema migrations now define the core MySQL tables for users, places, per-user city/spot state, trips, check-ins, images, AI memories, achievements, plans, community posts, and community interactions.
 
-The service still uses `TravelStore` as the request-handling facade. Runtime state now persists through a database snapshot and is mirrored into normalized tables for inspection and migration continuity. Core travel, media, AI memory, plan, achievement, and quest paths now use MyBatis reads/writes; community remains the main unmigrated domain.
+The service still uses `TravelStore` as the request-handling facade. Runtime state now persists through a database snapshot and is mirrored into normalized tables for inspection and migration continuity. Core travel, media, AI memory, plan, achievement, quest, Community Feed, and community interaction paths now use MyBatis reads/writes where the product has APIs. Full community post publishing remains the main unmigrated domain.
 
 ## Persistence
 
@@ -39,9 +40,12 @@ Current behavior:
 - User phone binding, user city/spot state changes, trip creation, and check-in creation write directly through MyBatis mapper methods before the compatibility snapshot/projection save runs.
 - Image metadata, AI memories, plans, achievements, and theme quests refresh from relational tables through MyBatis mappers.
 - Image upload metadata changes, AI memory saves, plan create/delete, and achievement unlocks write directly through MyBatis mapper methods before the compatibility snapshot/projection save runs.
+- Community Feed refreshes from `community_posts` through a MyBatis mapper before `/community/posts` responses are assembled.
+- Community likes, saves, and comments write to `community_post_likes`, `community_post_saves`, and `community_comments`; post responses include user-scoped `liked`/`saved` flags and aggregate counts.
 - Migration `V4__check_in_idempotency.sql` adds a unique index for `(user_id, client_request_id)` on `check_ins`.
+- Migration `V5__community_interactions.sql` adds community like, save, and comment tables.
 
-This is an incremental persistence step designed to preserve the current API behavior while keeping the mapper migration small. Production-grade normalized persistence should move community and any remaining snapshot-only fields from the snapshot-backed facade into domain mappers/services over the existing Flyway tables.
+This is an incremental persistence step designed to preserve the current API behavior while keeping the mapper migration small. Production-grade normalized persistence should add community post publishing/follow APIs and continue moving remaining snapshot-backed facade behavior into domain services over the existing Flyway tables.
 
 ## AI Provider
 

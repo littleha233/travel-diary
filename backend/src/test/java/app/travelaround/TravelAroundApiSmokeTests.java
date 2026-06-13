@@ -246,6 +246,95 @@ class TravelAroundApiSmokeTests {
         org.junit.jupiter.api.Assertions.assertEquals(2, userRows);
     }
 
+    @Test
+    void communityPostsReadFromRelationalTableThroughApi() throws Exception {
+        String token = guestToken();
+        jdbcTemplate.update(
+            "update community_posts set title = ?, subtitle = ?, author_id = ? where id = ?",
+            "DB 社区路线",
+            "从关系表读取",
+            "CC Reviewer",
+            "route-hangzhou"
+        );
+
+        mockMvc.perform(get("/v1/community/posts?keyword=DB").header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.length()").value(1))
+            .andExpect(jsonPath("$.data[0].id").value("route-hangzhou"))
+            .andExpect(jsonPath("$.data[0].title").value("DB 社区路线"))
+            .andExpect(jsonPath("$.data[0].subtitle").value("从关系表读取"))
+            .andExpect(jsonPath("$.data[0].author").value("CC Reviewer"));
+    }
+
+    @Test
+    void communityInteractionsAreIsolatedByLoggedInUser() throws Exception {
+        String tokenA = loginByPhone("13900001003");
+        String tokenB = loginByPhone("13900001004");
+        String userA = currentUserId(tokenA);
+        String userB = currentUserId(tokenB);
+
+        mockMvc.perform(post("/v1/community/posts/route-hangzhou/like").header("Authorization", "Bearer " + tokenA))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.post.id").value("route-hangzhou"))
+            .andExpect(jsonPath("$.data.post.liked").value(true))
+            .andExpect(jsonPath("$.data.post.likeCount").value(1));
+
+        mockMvc.perform(post("/v1/community/posts/route-hangzhou/save").header("Authorization", "Bearer " + tokenA))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.post.id").value("route-hangzhou"))
+            .andExpect(jsonPath("$.data.post.saved").value(true))
+            .andExpect(jsonPath("$.data.post.saveCount").value(1));
+
+        mockMvc.perform(post("/v1/community/posts/route-hangzhou/comments")
+                .header("Authorization", "Bearer " + tokenA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"body\":\"A 用户的社区评论\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.comment.postId").value("route-hangzhou"))
+            .andExpect(jsonPath("$.data.comment.userId").value(userA))
+            .andExpect(jsonPath("$.data.post.commentCount").value(1));
+
+        mockMvc.perform(get("/v1/community/posts").header("Authorization", "Bearer " + tokenB))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[?(@.id == 'route-hangzhou')].liked", hasItem(false)))
+            .andExpect(jsonPath("$.data[?(@.id == 'route-hangzhou')].saved", hasItem(false)))
+            .andExpect(jsonPath("$.data[?(@.id == 'route-hangzhou')].likeCount", hasItem(1)))
+            .andExpect(jsonPath("$.data[?(@.id == 'route-hangzhou')].saveCount", hasItem(1)))
+            .andExpect(jsonPath("$.data[?(@.id == 'route-hangzhou')].commentCount", hasItem(1)));
+
+        mockMvc.perform(get("/v1/community/posts/route-hangzhou/comments").header("Authorization", "Bearer " + tokenB))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data[*].body", hasItem("A 用户的社区评论")));
+
+        Integer likeRows = jdbcTemplate.queryForObject(
+            "select count(*) from community_post_likes where user_id = ? and post_id = ?",
+            Integer.class,
+            userA,
+            "route-hangzhou"
+        );
+        Integer saveRows = jdbcTemplate.queryForObject(
+            "select count(*) from community_post_saves where user_id = ? and post_id = ?",
+            Integer.class,
+            userA,
+            "route-hangzhou"
+        );
+        Integer userBLikeRows = jdbcTemplate.queryForObject(
+            "select count(*) from community_post_likes where user_id = ?",
+            Integer.class,
+            userB
+        );
+        Integer userBSaveRows = jdbcTemplate.queryForObject(
+            "select count(*) from community_post_saves where user_id = ?",
+            Integer.class,
+            userB
+        );
+
+        org.junit.jupiter.api.Assertions.assertEquals(1, likeRows);
+        org.junit.jupiter.api.Assertions.assertEquals(1, saveRows);
+        org.junit.jupiter.api.Assertions.assertEquals(0, userBLikeRows);
+        org.junit.jupiter.api.Assertions.assertEquals(0, userBSaveRows);
+    }
+
     private String loginByPhone(String phone) throws Exception {
         mockMvc.perform(post("/v1/auth/sms/code")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -259,6 +348,17 @@ class TravelAroundApiSmokeTests {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.data.accessToken").isString())
             .andExpect(jsonPath("$.data.user.phone").value(phone))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        return objectMapper.readTree(authResponse).path("data").path("accessToken").asText();
+    }
+
+    private String guestToken() throws Exception {
+        String authResponse = mockMvc.perform(post("/v1/auth/guest").contentType(MediaType.APPLICATION_JSON).content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.data.accessToken").isString())
             .andReturn()
             .getResponse()
             .getContentAsString();

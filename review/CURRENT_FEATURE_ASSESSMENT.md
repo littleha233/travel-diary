@@ -5,7 +5,7 @@
 开发基线：`ca7c9d6 Implement phase 5 wishlist and plans`
 评估范围：前端 Expo App、API 模式、Spring Boot 后端阶段 1-5、真机验收风险。
 
-> 2026-06-13 追加：持久化第一切片已实现，当前采用 `travel_store_snapshots` 数据库快照保存/恢复运行态，并同步投影写入 V2 业务表；阶段一和阶段二 mapper 迁移已收尾，除社区外的核心 MVP 领域已接入 MyBatis 读写链路。
+> 2026-06-13 追加：持久化第一切片已实现，当前采用 `travel_store_snapshots` 数据库快照保存/恢复运行态，并同步投影写入 V2 业务表；阶段一和阶段二 mapper 迁移已收尾。2026-06-14 追加：Community Feed 读链路已接入 `community_posts` MyBatis mapper，点赞、收藏、评论已接入用户隔离的关系表写链路。
 
 ## 1. 结论
 
@@ -14,7 +14,7 @@
 - 前端页面、导航、地图、城市/景点/行程/计划/AI 回忆等主流程基本完整。
 - API 模式已经能连接本地 Spring Boot 后端。
 - 后端已实现阶段 1-5：鉴权、读链路、打卡写链路、图片上传、AI 回忆、心愿单、手动点亮、计划。
-- 但后端请求处理仍由 `TravelStore` 承担；当前已新增数据库快照持久化、V2 业务表关系投影，并把 users/cities/spots/user states/trips/check-ins/images/AI memories/plans/achievements/quests 接入 MyBatis mapper；社区迁移还没有完成。
+- 但后端请求处理仍由 `TravelStore` 承担；当前已新增数据库快照持久化、V2 业务表关系投影，并把 users/cities/spots/user states/trips/check-ins/images/AI memories/plans/achievements/quests/Community Feed/Community interactions 接入 MyBatis mapper；社区发帖和关注还没有完成。
 
 因此当前适合做“产品体验验收”“接口闭环验收”和“重启后运行态恢复验收”，但还不适合宣称“生产级分域持久化完成”。
 
@@ -34,7 +34,7 @@
 | 计划页         | 可验收     | 能展示计划、创建周末计划、展示心愿城市。                        |
 | AI 回忆页      | 可验收     | 能生成草稿、编辑、保存。                                        |
 | 成就/任务页    | 可验收     | 能展示成就和主题任务进度。                                      |
-| 社区页         | 可验收展示 | 当前可展示 Feed，但还不是完整真实社交模块。                     |
+| 社区页         | 可验收     | Feed、点赞、收藏、评论后端链路可验收；发帖/关注未实现。         |
 
 ### 2.2 API 模式闭环
 
@@ -57,7 +57,7 @@
 | 心愿单/手动点亮     | 可验收     | `/v1/wishlist/*`、`/v1/cities/{cityId}/manual-light`                                                      |
 | 计划                | 可验收     | `GET /v1/plans`、`GET /v1/plans/{planId}`、`POST /v1/plans/weekend-template`、`DELETE /v1/plans/{planId}` |
 | 成就/任务           | 可验收     | `GET /v1/achievements`                                                                                    |
-| 社区 Feed           | 可验收展示 | `GET /v1/community/posts`                                                                                 |
+| 社区 Feed/互动      | 可验收     | `GET /v1/community/posts`、`POST/DELETE /v1/community/posts/{postId}/like`、`POST/DELETE /v1/community/posts/{postId}/save`、`GET/POST /v1/community/posts/{postId}/comments` |
 
 ## 3. 只是 mock / 内存态的功能
 
@@ -65,7 +65,7 @@
 
 当前后端虽然有 Flyway schema，但业务请求处理仍然走 `TravelStore`：
 
-- 用户、城市、景点、用户城市/景点状态、行程、打卡、图片、AI 回忆、计划、成就、任务会从 V2 表经 MyBatis 刷新到运行态；社区仍主要由内存 Map/List 组装。
+- 用户、城市、景点、用户城市/景点状态、行程、打卡、图片、AI 回忆、计划、成就、任务、社区 Feed 会从 V2 表经 MyBatis 刷新到运行态；社区点赞、收藏、评论会直接写入互动表。
 - 已新增 `travel_store_snapshots`，写操作会保存完整运行态快照，服务启动时可从数据库恢复。
 - 每次快照保存会同步改写 V2 规范业务表，便于检查 users/cities/spots/user states/trips/check-ins/images/AI memories/plans 等关系数据。
 - User/Profile、City/Spot、User State 的读链路已接入 `TravelStoreFoundationMapper`。
@@ -91,9 +91,9 @@
 
 ### 3.4 社区还是展示型 MVP
 
-- 当前只有社区 Feed 展示。
-- 尚未实现真实发帖、图文发布、点赞、收藏、评论、关注、用户主页。
-- 社区内容仍来自内存 seed。
+- 当前 Feed 数据已从 `community_posts` 表读取。
+- 点赞、收藏、评论已实现用户隔离的后端写链路。
+- 尚未实现真实发帖、图文发布、关注、用户主页。
 
 ### 3.5 地图还不是生产地图 SDK
 
@@ -103,7 +103,7 @@
 
 ## 4. 接口已通但未逐表持久化的范围
 
-这些接口已经能被前端 API 模式调用，也能完成业务行为；当前会写入数据库快照，并同步投影到规范业务表。除社区外的核心 MVP 领域已接 mapper 读写：
+这些接口已经能被前端 API 模式调用，也能完成业务行为；当前会写入数据库快照，并同步投影到规范业务表。核心 MVP 领域和 Community Feed/互动链路已接 mapper：
 
 | 模块                  | 接口状态 | 当前持久化状态 | 仍待完成                                                      |
 | --------------------- | -------- | -------------- | ------------------------------------------------------------- |
@@ -116,7 +116,7 @@
 | AI Memories           | 已通     | MyBatis 读写 + 快照兜底 | 补真实 provider 生产配置验收。               |
 | Achievements/Quests   | 已通     | MyBatis 读写 + 快照兜底 | 后续可进一步拆 service 层和进度缓存策略。                            |
 | Plans                 | 已通     | MyBatis 读写 + 快照兜底 | 后续可补心愿城市关联表或计划推荐规则。    |
-| Community             | 只读已通 | 快照 + V2 表投影 | 迁移运行时读写到社区表，并实现发帖、点赞、收藏、评论、关注等真实写链路。     |
+| Community             | Feed/互动已通 | MyBatis 读写 + 快照投影 | 实现发帖、关注、用户主页等完整社交链路。     |
 
 ## 5. 真机体验风险
 
@@ -184,18 +184,16 @@ EXPO_PUBLIC_API_AUTH_MODE=guest
 
 ## 7. 下一步开发建议
 
-考虑当前额度和功能风险，建议下一阶段不要直接做社区大模块，而是优先做持久化落库。
+当前持久化主链路、Feature 域、Community Feed/互动链路已经完成 mapper 迁移。下一阶段建议从“继续拆薄 `TravelStore`”和“补齐产品未定义的真实社交能力”两条线推进。
 
 推荐拆分顺序：
 
-1. `users`、guest/auth、手机号 mock 登录落库。
-2. `cities`、`spots` 基础数据读取落库。
-3. `user_city_states`、`user_spot_states` 落库，保持 per-user 状态。
-4. `trips`、`trip_cities`、`trip_spots`、`check_ins`、`trip_check_ins` 落库。
-5. `images` metadata 落库，MinIO 只负责对象文件。
-6. `plans`、`plan_cities`、`plan_spots` 落库。
-7. `ai_memories` 落库。
-8. 再启动社区写链路：发帖、点赞、收藏、评论、关注。
+1. 拆分 `TravelStore` facade，把 Auth、Place、Trip、Feature、Community 逐步下沉到 service。
+2. 补社区发帖/图文发布和关注关系表、接口、测试。
+3. 补 token refresh、guest 到手机号用户的数据合并。
+4. 接真实短信 provider，并保留 mock profile。
+5. 完成真实 AI provider 配置验收和生产降级策略。
+6. 推进生产地图 SDK、坐标体系和隐私合规。
 
 每完成一个切片都应：
 
@@ -209,7 +207,7 @@ EXPO_PUBLIC_API_AUTH_MODE=guest
 
 当前可以接受为：
 
-> TravelAround 已完成前端 MVP 与后端阶段 1-5 的 API 闭环，支持真机 API 模式体验验收；后端已完成持久化第一切片、阶段一和阶段二 mapper 读写链路，但尚未完成社区 mapper/service 拆分、真实短信、真实 AI key 配置验收、完整社区社交和生产地图 SDK。
+> TravelAround 已完成前端 MVP 与后端阶段 1-5 的 API 闭环，支持真机 API 模式体验验收；后端已完成持久化第一切片、阶段一和阶段二 mapper 读写链路，并补齐 Community Feed/点赞/收藏/评论 mapper 读写链路，但尚未完成社区发帖/关注、真实短信、真实 AI key 配置验收、完整社区社交和生产地图 SDK。
 
 不建议当前接受为：
 
@@ -217,4 +215,4 @@ EXPO_PUBLIC_API_AUTH_MODE=guest
 
 更准确的状态是：
 
-> 真实后端骨架与 API 行为已完成，持久化第一切片、阶段一和阶段二 mapper 读写链路已落地，下一阶段关键任务是把社区迁移到分域 mapper/service，并逐步拆掉 `TravelStore` facade。
+> 真实后端骨架与 API 行为已完成，持久化第一切片、阶段一和阶段二 mapper 读写链路已落地，Community Feed/互动 mapper 读写链路已补齐，下一阶段关键任务是实现社区发帖/关注并逐步拆掉 `TravelStore` facade。

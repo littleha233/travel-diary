@@ -24,6 +24,7 @@ public class TravelStore {
     private final TravelStoreFoundationRepository foundationRepository;
     private final TravelStoreRuntimeRepository runtimeRepository;
     private final TravelStoreFeatureRepository featureRepository;
+    private final TravelStoreCommunityRepository communityRepository;
     private final Map<String, Map<String, Object>> users = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> cities = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> spots = new LinkedHashMap<>();
@@ -45,12 +46,14 @@ public class TravelStore {
         TravelStoreSnapshotRepository snapshotRepository,
         TravelStoreFoundationRepository foundationRepository,
         TravelStoreRuntimeRepository runtimeRepository,
-        TravelStoreFeatureRepository featureRepository
+        TravelStoreFeatureRepository featureRepository,
+        TravelStoreCommunityRepository communityRepository
     ) {
         this.snapshotRepository = snapshotRepository;
         this.foundationRepository = foundationRepository;
         this.runtimeRepository = runtimeRepository;
         this.featureRepository = featureRepository;
+        this.communityRepository = communityRepository;
         seed();
     }
 
@@ -59,6 +62,7 @@ public class TravelStore {
         this.foundationRepository = null;
         this.runtimeRepository = null;
         this.featureRepository = null;
+        this.communityRepository = null;
         seed();
     }
 
@@ -430,12 +434,67 @@ public class TravelStore {
         return result;
     }
 
-    public synchronized List<Map<String, Object>> communityPosts(String keyword) {
+    public synchronized List<Map<String, Object>> communityPosts(String userId, String keyword) {
+        refreshCommunityFromDatabase(userId);
         String normalized = normalize(keyword);
         return communityPosts.stream()
             .filter(item -> normalized.isEmpty() || normalize(String.valueOf(item.get("title")) + " " + item.get("subtitle")).contains(normalized))
             .map(this::copy)
             .toList();
+    }
+
+    public synchronized Map<String, Object> likeCommunityPost(String userId, String postId, boolean liked) {
+        ensureCommunityPost(postId);
+        if (communityRepository != null) {
+            communityRepository.setLiked(userId, postId, liked);
+        }
+        refreshCommunityFromDatabase(userId);
+        return map("post", communityPost(userId, postId));
+    }
+
+    public synchronized Map<String, Object> saveCommunityPost(String userId, String postId, boolean saved) {
+        ensureCommunityPost(postId);
+        if (communityRepository != null) {
+            communityRepository.setSaved(userId, postId, saved);
+        }
+        refreshCommunityFromDatabase(userId);
+        return map("post", communityPost(userId, postId));
+    }
+
+    public synchronized List<Map<String, Object>> communityComments(String postId) {
+        ensureCommunityPost(postId);
+        if (communityRepository == null) {
+            return new ArrayList<>();
+        }
+        return communityRepository.loadComments(postId);
+    }
+
+    public synchronized Map<String, Object> createCommunityComment(String userId, String postId, String body) {
+        ensureCommunityPost(postId);
+        if (body == null || body.isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ErrorCode.VALIDATION_ERROR, "Comment body is required.");
+        }
+        Map<String, Object> comment = map(
+            "id", "comment-" + UUID.randomUUID(),
+            "postId", postId,
+            "userId", userId,
+            "body", body,
+            "status", "published",
+            "createdAt", Instant.now().toString(),
+            "updatedAt", Instant.now().toString()
+        );
+        if (communityRepository != null) {
+            communityRepository.saveComment(comment);
+            List<Map<String, Object>> comments = communityRepository.loadComments(postId);
+            Map<String, Object> saved = comments.stream()
+                .filter(item -> comment.get("id").equals(item.get("id")))
+                .findFirst()
+                .map(this::copy)
+                .orElse(copy(comment));
+            refreshCommunityFromDatabase(userId);
+            return map("comment", saved, "post", communityPost(userId, postId));
+        }
+        return map("comment", copy(comment), "post", communityPost(userId, postId));
     }
 
     public synchronized Map<String, Object> uploadTarget(String userId, String fileName, String contentType, String linkedType, UploadTarget target) {
@@ -651,6 +710,35 @@ public class TravelStore {
         mergeMap(plans, feature.get("plans"));
         mergeList(achievements, feature.get("achievements"));
         mergeList(quests, feature.get("quests"));
+    }
+
+    private void refreshCommunityFromDatabase(String userId) {
+        if (communityRepository == null || !communityRepository.hasCommunityRows()) {
+            return;
+        }
+        replaceList(communityPosts, communityRepository.loadPosts(userId));
+    }
+
+    private void ensureCommunityPost(String postId) {
+        if (communityRepository != null && communityRepository.hasCommunityRows()) {
+            if (!communityRepository.postExists(postId)) {
+                throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.COMMUNITY_POST_NOT_FOUND, "Community post not found.", map("postId", postId));
+            }
+            return;
+        }
+        boolean exists = communityPosts.stream().anyMatch(post -> postId.equals(post.get("id")));
+        if (!exists) {
+            throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.COMMUNITY_POST_NOT_FOUND, "Community post not found.", map("postId", postId));
+        }
+    }
+
+    private Map<String, Object> communityPost(String userId, String postId) {
+        refreshCommunityFromDatabase(userId);
+        return communityPosts.stream()
+            .filter(post -> postId.equals(post.get("id")))
+            .findFirst()
+            .map(this::copy)
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ErrorCode.COMMUNITY_POST_NOT_FOUND, "Community post not found.", map("postId", postId)));
     }
 
     private void saveUser(Map<String, Object> user) {

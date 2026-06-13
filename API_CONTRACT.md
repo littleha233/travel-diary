@@ -2,7 +2,7 @@
 
 Version: Backend MVP  
 Status: Implemented for the current frontend API-mode loop under `backend/`  
-Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes, and Phase 5 wishlist/manual-light/plans are implemented with user-scoped runtime state. Persistence now saves/restores runtime state through a database snapshot, projects it into the V2 core tables, and uses MyBatis mapper reads/writes for users, cities/spots, user state, trips, check-ins, images, AI memories, plans, achievements, and quests; community and SMS are still follow-up work.
+Scope: REST API contract plus local Spring Boot backend MVP. Core write-chain behavior is implemented for trip/check-in/nearby flows, image upload supports local fallback plus MinIO/S3-compatible presigned PUT URLs, AI memory generation supports a backend provider abstraction for mock/Anthropic/DeepSeek modes, and Phase 5 wishlist/manual-light/plans are implemented with user-scoped runtime state. Persistence now saves/restores runtime state through a database snapshot, projects it into the V2 core tables, and uses MyBatis mapper reads/writes for users, cities/spots, user state, trips, check-ins, images, AI memories, plans, achievements, quests, Community Feed reads, and community likes/saves/comments; post publishing, follows, and SMS are still follow-up work.
 
 ## 1. Design Goals
 
@@ -1617,6 +1617,75 @@ Pagination:
 
 Not required for MVP. Add page-based pagination if badge catalog grows.
 
+### 6.20 Community Feed And Interactions
+
+Community Feed is authenticated. Feed rows include per-user `liked` and `saved` flags plus aggregate counts.
+
+```http
+GET /community/posts
+POST /community/posts/{postId}/like
+DELETE /community/posts/{postId}/like
+POST /community/posts/{postId}/save
+DELETE /community/posts/{postId}/save
+GET /community/posts/{postId}/comments
+POST /community/posts/{postId}/comments
+```
+
+Response `200` for `GET /community/posts`:
+
+```json
+{
+  "data": [
+    {
+      "id": "route-hangzhou",
+      "type": "route",
+      "title": "杭州 3 日探索路线",
+      "subtitle": "7 个打卡点 · 3 天 · 2.1k 收藏",
+      "author": "Nicola",
+      "linkedId": "hangzhou-3-days",
+      "actionLabel": "加入我的计划",
+      "progress": 86,
+      "liked": false,
+      "saved": true,
+      "likeCount": 12,
+      "saveCount": 42,
+      "commentCount": 3
+    }
+  ]
+}
+```
+
+Request body for `POST /community/posts/{postId}/comments`:
+
+```json
+{
+  "body": "这条路线我也想试试"
+}
+```
+
+Response `200` for like, save, and comment mutations returns the updated post envelope:
+
+```json
+{
+  "data": {
+    "post": {
+      "id": "route-hangzhou",
+      "liked": true,
+      "saved": false,
+      "likeCount": 13,
+      "saveCount": 42,
+      "commentCount": 3
+    }
+  }
+}
+```
+
+Error codes:
+
+- `AUTH_REQUIRED`
+- `COMMUNITY_POST_NOT_FOUND`
+- `VALIDATION_ERROR`
+
 ## 7. Backend MVP Data Tables
 
 This is not implementation, but these table names map cleanly to a later Spring Boot service:
@@ -1641,6 +1710,10 @@ This is not implementation, but these table names map cleanly to a later Spring 
 - `plans`
 - `plan_cities`
 - `plan_spots`
+- `community_posts`
+- `community_post_likes`
+- `community_post_saves`
+- `community_comments`
 
 ## 8. Service Boundaries
 
@@ -1655,5 +1728,6 @@ Suggested Spring Boot package/module boundaries:
 - Wishlist service: `/cities/{cityId}/manual-light`, `/wishlist/cities/{cityId}`, `/wishlist/spots/{spotId}`.
 - Plan service: `/plans`, `/plans/{planId}`, `/plans/weekend-template`.
 - Achievement service: `/achievements`, quest progress recalculation.
+- Community service: `/community/posts`, likes, saves, comments.
 
 For Phase 5 implementation, start with user, place, check-in, and trip persistence before adding real image storage or a real AI provider.
