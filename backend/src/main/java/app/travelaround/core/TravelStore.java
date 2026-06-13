@@ -23,6 +23,7 @@ public class TravelStore {
     private final TravelStoreSnapshotRepository snapshotRepository;
     private final TravelStoreFoundationRepository foundationRepository;
     private final TravelStoreRuntimeRepository runtimeRepository;
+    private final TravelStoreFeatureRepository featureRepository;
     private final Map<String, Map<String, Object>> users = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> cities = new LinkedHashMap<>();
     private final Map<String, Map<String, Object>> spots = new LinkedHashMap<>();
@@ -43,11 +44,13 @@ public class TravelStore {
     public TravelStore(
         TravelStoreSnapshotRepository snapshotRepository,
         TravelStoreFoundationRepository foundationRepository,
-        TravelStoreRuntimeRepository runtimeRepository
+        TravelStoreRuntimeRepository runtimeRepository,
+        TravelStoreFeatureRepository featureRepository
     ) {
         this.snapshotRepository = snapshotRepository;
         this.foundationRepository = foundationRepository;
         this.runtimeRepository = runtimeRepository;
+        this.featureRepository = featureRepository;
         seed();
     }
 
@@ -55,6 +58,7 @@ public class TravelStore {
         this.snapshotRepository = snapshotRepository;
         this.foundationRepository = null;
         this.runtimeRepository = null;
+        this.featureRepository = null;
         seed();
     }
 
@@ -367,6 +371,7 @@ public class TravelStore {
     }
 
     public synchronized List<Map<String, Object>> listPlans(String userId) {
+        refreshFeatureStateFromDatabase();
         return plans.values().stream()
             .filter(plan -> userId.equals(plan.get("userId")))
             .map(this::copy)
@@ -374,6 +379,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> plan(String userId, String planId) {
+        refreshFeatureStateFromDatabase();
         Map<String, Object> plan = plans.get(planId);
         if (plan == null || !userId.equals(plan.get("userId"))) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.PLAN_NOT_FOUND, "Plan not found.", map("planId", planId));
@@ -399,6 +405,7 @@ public class TravelStore {
             "updatedAt", Instant.now().toString()
         );
         plans.put(id, plan);
+        savePlan(plan);
         persistSnapshot();
         return map("plan", copy(plan));
     }
@@ -409,6 +416,7 @@ public class TravelStore {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.PLAN_NOT_FOUND, "Plan not found.", map("planId", planId));
         }
         plans.remove(planId);
+        deletePlanFromDatabase(planId);
         Map<String, Object> result = map("deleted", true, "planId", planId);
         persistSnapshot();
         return result;
@@ -423,6 +431,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> uploadTarget(String userId, String fileName, String contentType, String linkedType, UploadTarget target) {
+        refreshFeatureStateFromDatabase();
         String id = target.imageId();
         Map<String, Object> image = map(
             "id", id,
@@ -437,6 +446,7 @@ public class TravelStore {
             "createdAt", Instant.now().toString()
         );
         images.put(id, image);
+        saveImage(image);
         persistSnapshot();
         return map(
             "imageId", id,
@@ -449,15 +459,19 @@ public class TravelStore {
     }
 
     public synchronized void markUploaded(String imageId, long size) {
+        refreshFeatureStateFromDatabase();
         Map<String, Object> image = images.get(imageId);
         if (image != null) {
             image.put("byteSize", size);
             image.put("status", "uploaded");
+            image.put("updatedAt", Instant.now().toString());
+            saveImage(image);
             persistSnapshot();
         }
     }
 
     public synchronized Map<String, Object> confirmImage(String userId, String imageId, String linkedType, String linkedId) {
+        refreshFeatureStateFromDatabase();
         Map<String, Object> image = images.get(imageId);
         if (image == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, ErrorCode.IMAGE_NOT_FOUND, "Image not found.", map("imageId", imageId));
@@ -469,6 +483,7 @@ public class TravelStore {
         image.put("linkedId", linkedId);
         image.put("status", "confirmed");
         image.put("updatedAt", Instant.now().toString());
+        saveImage(image);
         Map<String, Object> result = copy(image);
         persistSnapshot();
         return result;
@@ -476,6 +491,7 @@ public class TravelStore {
 
     public synchronized AiMemoryGenerateInput aiMemoryInput(String userId, String tripId, String style, String extraPrompt) {
         refreshTripCheckInFromDatabase();
+        refreshFeatureStateFromDatabase();
         Map<String, Object> trip = trip(userId, tripId);
         List<String> spotIds = stringList(trip.get("spotIds"));
         if (spotIds.isEmpty()) {
@@ -515,6 +531,7 @@ public class TravelStore {
     }
 
     public synchronized Map<String, Object> saveMemory(String userId, String tripId, String title, String content, String summary, String shareText, String style) {
+        refreshFeatureStateFromDatabase();
         trip(userId, tripId);
         String id = "memory-" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
         Map<String, Object> memory = map(
@@ -533,12 +550,15 @@ public class TravelStore {
         );
         aiMemories.put(id, memory);
         trips.get(tripId).put("aiMemoryId", id);
+        saveAiMemory(memory);
+        saveTrip(trips.get(tripId));
         Map<String, Object> result = copy(memory);
         persistSnapshot();
         return result;
     }
 
     public synchronized Map<String, Object> achievementsWithQuests() {
+        refreshFeatureStateFromDatabase();
         return map(
             "achievements", achievements.stream().map(this::copy).toList(),
             "quests", quests.stream().map(this::copy).toList()
@@ -613,6 +633,18 @@ public class TravelStore {
         replaceStringMap(checkInRequests, runtime.get("checkInRequests"));
     }
 
+    private void refreshFeatureStateFromDatabase() {
+        if (featureRepository == null || !featureRepository.hasFeatureRows()) {
+            return;
+        }
+        Map<String, Object> feature = featureRepository.loadFeatureState();
+        mergeMap(images, feature.get("images"));
+        mergeMap(aiMemories, feature.get("aiMemories"));
+        mergeMap(plans, feature.get("plans"));
+        mergeList(achievements, feature.get("achievements"));
+        mergeList(quests, feature.get("quests"));
+    }
+
     private void saveUserPhone(Map<String, Object> user, String phone) {
         if (foundationRepository != null) {
             foundationRepository.saveUserPhone(String.valueOf(user.get("id")), phone);
@@ -640,6 +672,36 @@ public class TravelStore {
     private void saveCheckIn(Map<String, Object> checkIn, String clientRequestId) {
         if (runtimeRepository != null) {
             runtimeRepository.saveCheckIn(checkIn, clientRequestId);
+        }
+    }
+
+    private void saveImage(Map<String, Object> image) {
+        if (featureRepository != null) {
+            featureRepository.saveImage(image);
+        }
+    }
+
+    private void saveAiMemory(Map<String, Object> memory) {
+        if (featureRepository != null) {
+            featureRepository.saveAiMemory(memory);
+        }
+    }
+
+    private void savePlan(Map<String, Object> plan) {
+        if (featureRepository != null) {
+            featureRepository.savePlan(plan);
+        }
+    }
+
+    private void deletePlanFromDatabase(String planId) {
+        if (featureRepository != null) {
+            featureRepository.deletePlan(planId);
+        }
+    }
+
+    private void saveUserAchievement(String userId, Map<String, Object> achievement) {
+        if (featureRepository != null) {
+            featureRepository.saveUserAchievement(userId, achievement);
         }
     }
 
@@ -859,6 +921,7 @@ public class TravelStore {
     }
 
     private List<Map<String, Object>> refreshAchievementProgress(String userId) {
+        refreshFeatureStateFromDatabase();
         List<Map<String, Object>> unlocked = new ArrayList<>();
         for (Map<String, Object> quest : quests) {
             List<String> questSpotIds = stringList(quest.get("spotIds"));
@@ -879,6 +942,7 @@ public class TravelStore {
                     .ifPresent(item -> {
                         item.put("unlocked", true);
                         item.put("unlockedAt", LocalDate.now().toString());
+                        saveUserAchievement(userId, item);
                         unlocked.add(copy(item));
                     });
             }
@@ -1057,6 +1121,26 @@ public class TravelStore {
                     target.put(String.valueOf(key), merged);
                 }
             });
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void mergeList(List<Map<String, Object>> target, Object value) {
+        Map<String, Map<String, Object>> previous = new LinkedHashMap<>();
+        for (Map<String, Object> item : target) {
+            previous.put(String.valueOf(item.get("id")), copy(item));
+        }
+        target.clear();
+        if (value instanceof List<?> source) {
+            source.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> copy((Map<String, Object>) item))
+                .forEach(item -> {
+                    String id = String.valueOf(item.get("id"));
+                    Map<String, Object> merged = previous.containsKey(id) ? previous.get(id) : new LinkedHashMap<>();
+                    merged.putAll(item);
+                    target.add(merged);
+                });
         }
     }
 

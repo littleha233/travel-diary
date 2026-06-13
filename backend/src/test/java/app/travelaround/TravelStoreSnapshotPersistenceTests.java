@@ -2,8 +2,10 @@ package app.travelaround;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import app.travelaround.image.UploadTarget;
 import app.travelaround.core.TravelStore;
 import app.travelaround.core.TravelStoreSnapshotRepository;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -129,6 +131,62 @@ class TravelStoreSnapshotPersistenceTests {
         );
 
         assertEquals(1, count);
+    }
+
+    @Test
+    void featureMapperPathsPersistImagesPlansAndAiMemories() {
+        UploadTarget target = new UploadTarget(
+            "img-phase2",
+            "uploads/img-phase2.jpg",
+            "http://localhost/upload",
+            "http://localhost/public/img-phase2.jpg",
+            "PUT",
+            Map.of(),
+            true
+        );
+
+        store.uploadTarget("u-nicola", "phase2.jpg", "image/jpeg", "check-in", target);
+        store.markUploaded("img-phase2", 128);
+        store.confirmImage("u-nicola", "img-phase2", "check-in", "ci-phase2");
+        Integer confirmedImages = jdbcTemplate.queryForObject(
+            "select count(*) from images where id = ? and status = ? and linked_id = ?",
+            Integer.class,
+            "img-phase2",
+            "confirmed",
+            "ci-phase2"
+        );
+
+        Map<String, Object> planResult = store.createWeekendPlan("u-nicola");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> plan = (Map<String, Object>) planResult.get("plan");
+        jdbcTemplate.update("update plans set title = ? where id = ?", "DB 计划", plan.get("id"));
+        Map<String, Object> dbPlan = store.plan("u-nicola", String.valueOf(plan.get("id")));
+
+        store.saveMemory("u-nicola", "hangzhou-3-days", "二阶段回忆", "content", "summary", "share", "自然日记");
+        Integer memoryCount = jdbcTemplate.queryForObject(
+            "select count(*) from ai_memories where title = ? and trip_id = ?",
+            Integer.class,
+            "二阶段回忆",
+            "hangzhou-3-days"
+        );
+
+        assertEquals(1, confirmedImages);
+        assertEquals("DB 计划", dbPlan.get("title"));
+        assertEquals(1, memoryCount);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void achievementsAndQuestsReadFromRelationalTables() {
+        jdbcTemplate.update("update achievements set title = ? where id = ?", "DB 成就", "first-departure");
+        jdbcTemplate.update("update theme_quests set title = ? where id = ?", "DB 任务", "west-lake-ten");
+
+        Map<String, Object> result = store.achievementsWithQuests();
+        List<Map<String, Object>> achievements = (List<Map<String, Object>>) result.get("achievements");
+        List<Map<String, Object>> quests = (List<Map<String, Object>>) result.get("quests");
+
+        assertEquals("DB 成就", achievements.stream().filter(item -> "first-departure".equals(item.get("id"))).findFirst().orElseThrow().get("title"));
+        assertEquals("DB 任务", quests.stream().filter(item -> "west-lake-ten".equals(item.get("id"))).findFirst().orElseThrow().get("title"));
     }
 
     @Test
